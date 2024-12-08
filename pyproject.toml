@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "fastapi-meeting-service"
+version = "0.1.0"
+description = ""
+authors = ["Hannal <hannal@puddingcamp.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["all"], version = "^0.115.6"}
+sqlmodel = "^0.0.22"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
