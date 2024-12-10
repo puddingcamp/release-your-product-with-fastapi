@@ -27,6 +27,8 @@ class Calendar(SQLModel, table=True):
         sa_relationship_kwargs={"single_parent": True},
     )
 
+    time_slots: list["TimeSlot"] = Relationship(back_populates="calendar")
+
     created_at: AwareDatetime = Field(
         default=None,
         nullable=False,
@@ -45,3 +47,36 @@ class Calendar(SQLModel, table=True):
         },
     )
 
+
+
+class TimeSlot(SQLModel, table=True):
+    __tablename__ = "time_slots"
+
+    id: int = Field(default=None, primary_key=True)
+    start_time: time
+    end_time: time
+    weekdays: list[int] = Field(
+        sa_type=JSON().with_variant(JSONB(astext_type=Text()), "postgresql"),
+        description="예약 가능한 요일들"
+    )
+
+    calendar_id: int = Field(foreign_key="calendars.id")
+    calendar: Calendar = Relationship(back_populates="time_slots")
+
+    created_at: AwareDatetime = Field(
+        default=None,
+        nullable=False,
+        sa_type=UtcDateTime,
+        sa_column_kwargs={
+            "server_default": func.now(),
+        },
+    )
+    updated_at: AwareDatetime = Field(
+        default=None,
+        nullable=False,
+        sa_type=UtcDateTime,
+        sa_column_kwargs={
+            "server_default": func.now(),
+            "onupdate": lambda: datetime.now(timezone.utc),
+        },
+    )
