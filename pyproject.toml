@@ -10,6 +10,7 @@ python = "^3.11"
 fastapi = {extras = ["all"], version = "^0.115.6"}
 sqlmodel = "^0.0.22"
 sqlalchemy-utc = "^0.14.0"
+aiosqlite = "^0.20.0"
 
 
 [build-system]
