@@ -63,6 +63,8 @@ class TimeSlot(SQLModel, table=True):
     calendar_id: int = Field(foreign_key="calendars.id")
     calendar: Calendar = Relationship(back_populates="time_slots")
 
+    bookings: list["Booking"] = Relationship(back_populates="time_slot")
+
     created_at: AwareDatetime = Field(
         default=None,
         nullable=False,
@@ -80,3 +82,38 @@ class TimeSlot(SQLModel, table=True):
             "onupdate": lambda: datetime.now(timezone.utc),
         },
     )
+
+
+
+class Booking(SQLModel, table=True):
+    __tablename__ = "bookings"
+
+    id: int = Field(default=None, primary_key=True)
+    when: date
+    topic: str
+    description: str = Field(sa_type=Text, description="예약 설명")
+
+    time_slot_id: int = Field(foreign_key="time_slots.id")
+    time_slot: TimeSlot = Relationship(back_populates="bookings")
+
+    guest_id: int = Field(foreign_key="users.id")
+    guest: User = Relationship(back_populates="bookings")
+
+    created_at: AwareDatetime = Field(
+        default=None,
+        nullable=False,
+        sa_type=UtcDateTime,
+        sa_column_kwargs={
+            "server_default": func.now(),
+        },
+    )
+    updated_at: AwareDatetime = Field(
+        default=None,
+        nullable=False,
+        sa_type=UtcDateTime,
+        sa_column_kwargs={
+            "server_default": func.now(),
+            "onupdate": lambda: datetime.now(timezone.utc),
+        },
+    )
+
