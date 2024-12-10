@@ -97,7 +97,7 @@ class Booking(SQLModel, table=True):
     time_slot: TimeSlot = Relationship(back_populates="bookings")
 
     guest_id: int = Field(foreign_key="users.id")
-    guest: User = Relationship(back_populates="bookings")
+    guest: "User" = Relationship(back_populates="bookings")
 
     created_at: AwareDatetime = Field(
         default=None,
