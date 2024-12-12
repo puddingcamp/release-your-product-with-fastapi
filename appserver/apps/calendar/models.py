@@ -1,5 +1,5 @@
-from datetime import date, time, timezone, datetime
 from typing import TYPE_CHECKING
+from datetime import date, time, timezone, datetime
 
 from sqlalchemy.dialects.postgresql import JSONB
 from pydantic import AwareDatetime
@@ -24,7 +24,7 @@ class Calendar(SQLModel, table=True):
     host_id: int = Field(foreign_key="users.id", unique=True)
     host: "User" = Relationship(
         back_populates="calendar",
-        sa_relationship_kwargs={"single_parent": True},
+        sa_relationship_kwargs={"uselist": False, "single_parent": True},
     )
 
     time_slots: list["TimeSlot"] = Relationship(back_populates="calendar")
