@@ -6,8 +6,8 @@ from sqlmodel import SQLModel
 
 from db import create_engine, create_session, use_session
 from appserver.app import include_routers
-from appserver.apps.account import models
-from appserver.apps.calendar import models 
+from appserver.apps.account import models as account_models
+from appserver.apps.calendar import models as calendar_models
 
 
 @pytest.fixture(autouse=True)
@@ -45,3 +45,19 @@ def fastapi_app(db_session: AsyncSession):
 def client(fastapi_app: FastAPI):
     with TestClient(fastapi_app) as client:
         yield client
+
+
+
+@pytest.fixture()
+async def host_user(db_session: AsyncSession):
+    user = account_models.User(
+        username="test",
+        password="test",
+        email="test@example.com",
+        display_name="test",
+        is_host=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.flush()
+    return user

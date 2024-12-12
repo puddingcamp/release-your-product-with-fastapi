@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
 def create_engine(dsn: str):
     return create_async_engine(
         dsn,
-        echo=True,
+        echo=False,
     )
 
 
