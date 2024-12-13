@@ -49,13 +49,6 @@ class User(SQLModel, table=True):
         },
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def generate_display_name(cls, data: dict) -> dict:
-        if not data.get("display_name"):
-            data["display_name"] = "".join(random.choices(string.ascii_letters + string.digits, k=8))
-        return data
-
 
 class OAuthAccount(SQLModel, table=True):
     __tablename__ = "oauth_accounts"
