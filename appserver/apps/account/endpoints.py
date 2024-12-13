@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import select
+from sqlmodel import select, func
+from sqlalchemy.exc import IntegrityError
 
 from db import DbSessionDep
 from .models import User
+from .exceptions import DuplicatedUsernameError, DuplicatedEmailError
 
 router = APIRouter(prefix="/account")
 
@@ -18,3 +20,18 @@ async def user_detail(username: str, session: DbSessionDep) -> User:
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+
+async def signup(payload: dict, session: DbSessionDep) -> User:
+    stmt = select(func.count()).select_from(User).where(User.username == payload["username"])
+    result = await session.execute(stmt)
+    count = result.scalar_one()
+    if count > 0:
+        raise DuplicatedUsernameError()
+
+    user = User.model_validate(payload, from_attributes=True)
+    session.add(user)
+    try:
+        await session.commit()
+    except IntegrityError:
+        raise DuplicatedEmailError()
+    return user
