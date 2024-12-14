@@ -30,3 +30,8 @@ class UserOut(SQLModel):
     username: str
     display_name: str
     is_host: bool
+
+
+class LoginPayload(SQLModel):
+    username: str = Field(min_length=4, max_length=40)
+    password: str = Field(min_length=8, max_length=128)

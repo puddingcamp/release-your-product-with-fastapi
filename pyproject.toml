@@ -13,6 +13,8 @@ sqlalchemy-utc = "^0.14.0"
 aiosqlite = "^0.20.0"
 alembic = "^1.14.0"
 greenlet = "^3.1.1"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+pwdlib = {extras = ["argon2", "bcrypt"], version = "^0.2.1"}
 
 
 [tool.poetry.group.dev.dependencies]

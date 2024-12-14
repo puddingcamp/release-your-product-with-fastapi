@@ -8,6 +8,7 @@ from db import create_engine, create_session, use_session
 from appserver.app import include_routers
 from appserver.apps.account import models as account_models
 from appserver.apps.calendar import models as calendar_models
+from appserver.apps.account.utils import hash_password
 
 
 @pytest.fixture(autouse=True)
@@ -51,10 +52,10 @@ def client(fastapi_app: FastAPI):
 @pytest.fixture()
 async def host_user(db_session: AsyncSession):
     user = account_models.User(
-        username="test",
-        password="test",
-        email="test@example.com",
-        display_name="test",
+        username="puddingcamp",
+        hashed_password=hash_password("testtest"),
+        email="puddingcamp@example.com",
+        display_name="푸딩캠프",
         is_host=True,
     )
     db_session.add(user)
