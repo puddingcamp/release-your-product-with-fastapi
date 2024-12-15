@@ -110,3 +110,9 @@ async def update_user(
     await session.commit()
     return user
 
+
+@router.delete("/logout", status_code=status.HTTP_200_OK)
+async def logout(user: CurrentUserDep) -> JSONResponse:
+    res = JSONResponse({})
+    res.delete_cookie(AUTH_TOKEN_COOKIE_NAME)
+    return res
