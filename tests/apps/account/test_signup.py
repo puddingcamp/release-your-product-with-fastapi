@@ -3,6 +3,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import ValidationError
 
+from appserver.apps.account.schemas import SignupPayload
 from appserver.apps.account.exceptions import DuplicatedUsernameError, DuplicatedEmailError
 from appserver.apps.account.endpoints import signup
 from appserver.apps.account.models import User
@@ -97,4 +98,18 @@ async def test_표시명을_입력하지_않으면_무작위_문자열_8글자�
     user = await signup(payload, db_session)
     assert isinstance(user.display_name, str)
     assert len(user.display_name) == 8
-    
+
+
+async def test_회원가입하면_비밀번호는_해시되어_저장된다(db_session: AsyncSession):
+    payload_data = {
+        "username": "puddingcamp",
+        "display_name": "푸딩캠프",
+        "email": "test@example.com",
+        "password": "test테스트1234",
+        "password_again": "test테스트1234",
+    }
+    payload = SignupPayload.model_validate(payload_data)
+
+    user = await signup(payload, db_session)
+
+    assert user.hashed_password != payload.password

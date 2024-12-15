@@ -2,7 +2,7 @@ import random
 import string
 from typing import Self
 
-from pydantic import AwareDatetime, EmailStr, model_validator
+from pydantic import AwareDatetime, EmailStr, model_validator, computed_field
 from sqlmodel import SQLModel, Field
 
 
@@ -26,6 +26,11 @@ class SignupPayload(SQLModel):
             data["display_name"] = "".join(random.choices(string.ascii_letters + string.digits, k=8))
         return data
 
+    @computed_field
+    @property
+    def hashed_password(self) -> str:
+        return self.password[::-1]
+
 
 class UserOut(SQLModel):
     username: str
@@ -37,7 +42,6 @@ class UserDetailOut(UserOut):
     email: EmailStr
     created_at: AwareDatetime
     updated_at: AwareDatetime
-
 
 
 class LoginPayload(SQLModel):
