@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from appserver.app import include_routers
 from appserver.apps.account import models as account_models
 from appserver.apps.calendar import models as calendar_models
 from appserver.apps.account.utils import hash_password
+from appserver.apps.account.schemas import LoginPayload
 
 
 @pytest.fixture(autouse=True)
@@ -47,6 +48,23 @@ def client(fastapi_app: FastAPI):
     with TestClient(fastapi_app) as client:
         yield client
 
+
+@pytest.fixture()
+def client_with_auth(fastapi_app: FastAPI, host_user: account_models.User):
+    payload = LoginPayload.model_validate({
+        "username": host_user.username,
+        "password": "testtest",
+    })
+
+    with TestClient(fastapi_app) as client:
+        response = client.post("/account/login", json=payload.model_dump())
+        assert response.status_code == status.HTTP_200_OK
+
+        auth_token = response.cookies.get("auth_token")
+        assert auth_token is not None
+
+        client.cookies.set("auth_token", auth_token)
+        yield client
 
 
 @pytest.fixture()

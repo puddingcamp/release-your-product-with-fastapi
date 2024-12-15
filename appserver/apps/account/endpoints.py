@@ -7,12 +7,14 @@ from datetime import datetime, timedelta, timezone
 from db import DbSessionDep
 from .models import User
 from .exceptions import DuplicatedUsernameError, DuplicatedEmailError, PasswordMismatchError, UserNotFoundError
-from .schemas import LoginPayload, SignupPayload, UserOut
+from .schemas import LoginPayload, SignupPayload, UserDetailOut, UserOut
 from .utils import (
     verify_password, 
     create_access_token, 
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from .deps import CurrentUserDep
+from .constants import AUTH_TOKEN_COOKIE_NAME
 
 router = APIRouter(prefix="/account")
 
@@ -80,7 +82,7 @@ async def login(payload: LoginPayload, session: DbSessionDep) -> JSONResponse:
 
     res = JSONResponse(response_data, status_code=status.HTTP_200_OK)
     res.set_cookie(
-        key="auth_token",
+        key=AUTH_TOKEN_COOKIE_NAME,
         value=access_token,
         expires=now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         httponly=True,
@@ -88,3 +90,9 @@ async def login(payload: LoginPayload, session: DbSessionDep) -> JSONResponse:
         samesite="strict"
     )
     return res
+
+
+@router.get("/@me", response_model=UserDetailOut)
+async def me(user: CurrentUserDep) -> User:
+    return user
+
