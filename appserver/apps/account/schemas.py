@@ -4,6 +4,7 @@ from typing import Self
 
 from pydantic import AwareDatetime, EmailStr, model_validator, computed_field
 from sqlmodel import SQLModel, Field
+from .utils import hash_password
 
 
 class SignupPayload(SQLModel):
@@ -29,7 +30,7 @@ class SignupPayload(SQLModel):
     @computed_field
     @property
     def hashed_password(self) -> str:
-        return self.password[::-1]
+        return hash_password(self.password)
 
 
 class UserOut(SQLModel):
@@ -47,3 +48,4 @@ class UserDetailOut(UserOut):
 class LoginPayload(SQLModel):
     username: str = Field(min_length=4, max_length=40)
     password: str = Field(min_length=8, max_length=128)
+
