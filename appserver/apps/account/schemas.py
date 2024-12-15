@@ -49,3 +49,28 @@ class LoginPayload(SQLModel):
     username: str = Field(min_length=4, max_length=40)
     password: str = Field(min_length=8, max_length=128)
 
+
+class UpdateUserPayload(SQLModel):
+    display_name: str | None = Field(default=None, min_length=4, max_length=40)
+    email: EmailStr | None = Field(default=None, unique=True, max_length=128)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    password_again: str | None = Field(default=None, min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def check_all_fields_are_none(self) -> Self:
+        if not self.model_dump(exclude_none=True):
+            raise ValueError("최소 하나의 필드는 반드시 제공되어야 합니다.")
+        return self
+
+    @model_validator(mode="after")
+    def verify_password(self) -> Self:
+        if self.password and self.password != self.password_again:
+            raise ValueError("비밀번호가 일치하지 않습니다.")
+        return self
+
+    @computed_field
+    @property
+    def hashed_password(self) -> str | None:
+        if self.password:
+            return hash_password(self.password)
+        return None
