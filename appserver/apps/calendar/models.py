@@ -7,7 +7,7 @@ from sqlalchemy_utc import UtcDateTime
 from sqlmodel import SQLModel, Field, Relationship, Text, JSON, func
 
 if TYPE_CHECKING:
-    from apps.account.models import User
+    from appserver.apps.account.models import User
 
 
 class Calendar(SQLModel, table=True):

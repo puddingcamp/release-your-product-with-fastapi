@@ -1,5 +1,5 @@
 from pydantic import AwareDatetime
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel
 
 
 class CalendarOut(SQLModel):
@@ -8,7 +8,6 @@ class CalendarOut(SQLModel):
 
 
 class CalendarDetailOut(CalendarOut):
-    id: int
     google_calendar_id: str
     created_at: AwareDatetime
     updated_at: AwareDatetime

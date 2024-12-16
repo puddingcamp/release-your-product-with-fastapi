@@ -80,3 +80,32 @@ async def host_user(db_session: AsyncSession):
     await db_session.commit()
     await db_session.flush()
     return user
+
+
+@pytest.fixture()
+async def guest_user(db_session: AsyncSession):
+    user = account_models.User(
+        username="puddingcafe",
+        hashed_password=hash_password("testtest"),
+        email="puddingcafe@example.com",
+        display_name="푸딩까페",
+        is_host=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture()
+async def host_user_calendar(db_session: AsyncSession, host_user: account_models.User):
+    calendar = calendar_models.Calendar(
+        host_id=host_user.id,
+        description="푸딩캠프 캘린더 입니다.",
+        topics=["푸딩캠프", "푸딩캠프2"],
+        google_calendar_id="1234567890",
+    )
+    db_session.add(calendar)
+    await db_session.commit()
+    await db_session.flush()
+    return calendar
