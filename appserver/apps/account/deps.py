@@ -46,8 +46,8 @@ CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
 async def get_current_user_optional(
-    auth_token: Annotated[str, Cookie(...)],
     db_session: DbSessionDep,
+    auth_token: Annotated[str | None, Cookie()] = None,
 ):
     user = await get_user(auth_token, db_session)
     return user

@@ -12,6 +12,7 @@ from .schemas import CalendarDetailOut, CalendarOut
 router = APIRouter()
 
 
+@router.get("/calendar/{host_username}", status_code=status.HTTP_200_OK)
 async def host_calendar_detail(
     host_username: str,
     user: CurrentUserOptionalDep,
@@ -33,3 +34,5 @@ async def host_calendar_detail(
         return CalendarDetailOut.model_validate(calendar)
 
     return CalendarOut.model_validate(calendar)
+
+
