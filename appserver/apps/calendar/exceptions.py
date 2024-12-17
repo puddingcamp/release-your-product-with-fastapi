@@ -15,3 +15,11 @@ class CalendarNotFoundError(HTTPException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="캘린더가 없습니다.",
         )
+
+
+class CalendarAlreadyExistsError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="캘린더가 이미 존재합니다.",
+        )

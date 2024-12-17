@@ -76,3 +76,20 @@ async def test_호스트_사용자는_유효한_캘린더_정보를_제출하여
     assert result["topics"] == ["topic2", "topic1"]
     assert result["description"] == payload["description"]
     assert result["google_calendar_id"] == payload["google_calendar_id"]
+
+
+async def test_캘린더가_있는_상황에서_추가_생성하려_하면_422_응답을_반환한다(
+    client_with_auth: TestClient,
+) -> None:
+    google_calendar_id = "valid_google_calendar_id@group.calendar.google.com"
+
+    payload = {
+        "topics": ["topic2", "topic1", "topic2"],
+        "description": "description",
+        "google_calendar_id": google_calendar_id,
+    }
+    response = client_with_auth.post("/calendar", json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
+
+    response = client_with_auth.post("/calendar", json=payload)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

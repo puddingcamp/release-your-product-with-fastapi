@@ -4,6 +4,7 @@ from pydantic import AwareDatetime, EmailStr, AfterValidator
 from sqlmodel import SQLModel, Field
 from appserver.libs.collections.sort import deduplicate_and_sort
 
+
 class CalendarOut(SQLModel):
     topics: list[str]
     description: str
