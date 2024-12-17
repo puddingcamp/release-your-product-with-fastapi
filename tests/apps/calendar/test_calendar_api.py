@@ -54,3 +54,25 @@ async def test_호스트가_아닌_사용자의_username_으로_캘린더_정보
     response = client.get(f"/calendar/{guest_user.username}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
+
+async def test_호스트_사용자는_유효한_캘린더_정보를_제출하여_캘린더를_생성할_수_있다(
+    host_user: User,
+    client_with_auth: TestClient,
+) -> None:
+    google_calendar_id = "valid_google_calendar_id@group.calendar.google.com"
+
+    payload = {
+        "topics": ["topic2", "topic1", "topic2"],
+        "description": "description",
+        "google_calendar_id": google_calendar_id,
+    }
+
+    response = client_with_auth.post("/calendar", json=payload)
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    result = response.json()
+    assert result["host_id"] == host_user.id
+    assert result["topics"] == ["topic2", "topic1"]
+    assert result["description"] == payload["description"]
+    assert result["google_calendar_id"] == payload["google_calendar_id"]

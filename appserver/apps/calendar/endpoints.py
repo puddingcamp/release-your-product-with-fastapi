@@ -3,11 +3,11 @@ from sqlmodel import select
 
 from appserver.apps.account.models import User
 from appserver.apps.calendar.models import Calendar
-from appserver.apps.account.deps import CurrentUserOptionalDep
+from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
 
 from .exceptions import CalendarNotFoundError, HostNotFoundError
-from .schemas import CalendarDetailOut, CalendarOut
+from .schemas import CalendarCreateIn, CalendarDetailOut, CalendarOut
 
 router = APIRouter()
 
@@ -36,3 +36,22 @@ async def host_calendar_detail(
     return CalendarOut.model_validate(calendar)
 
 
+@router.post(
+    "/calendar",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CalendarDetailOut,
+)
+async def create_calendar(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    payload: CalendarCreateIn
+) -> CalendarDetailOut:
+    calendar = Calendar(
+        host_id=user.id,
+        topics=payload.topics,
+        description=payload.description,
+        google_calendar_id=payload.google_calendar_id,
+    )
+    session.add(calendar)
+    await session.commit()
+    return calendar
