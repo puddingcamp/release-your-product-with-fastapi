@@ -22,6 +22,25 @@ Topics = Annotated[list[str], AfterValidator(deduplicate_and_sort)]
 
 class CalendarCreateIn(SQLModel):
     topics: Topics = Field(min_length=1, description="게스트와 나눌 주제들")
-    description: str = Field(min_length=1, description="게스트에게 보여줄 설명")
-    google_calendar_id: EmailStr = Field(description="Google Calendar ID")
+    description: str = Field(min_length=10, description="게스트에게 보여줄 설명")
+    google_calendar_id: EmailStr = Field(min_length=90, description="Google Calendar ID")
+
+
+class CalendarUpdateIn(SQLModel):
+    topics: Topics | None = Field(
+        default=None,
+        min_length=1,
+        description="게스트와 나눌 주제들",
+    )
+    description: str | None = Field(
+        default=None,
+        min_length=10,
+        description="게스트에게 보여줄 설명",
+    )
+    google_calendar_id: EmailStr | None = Field(
+        default=None,
+        min_length=20,
+        description="Google Calendar ID",
+    )
+
 

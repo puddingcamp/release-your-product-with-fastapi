@@ -27,7 +27,7 @@ class User(SQLModel, table=True):
     oauth_accounts: list["OAuthAccount"] = Relationship(back_populates="user")
     calendar: Union["Calendar", None] = Relationship(
         back_populates="host",
-        sa_relationship_kwargs={"uselist": False, "single_parent": True},
+        sa_relationship_kwargs={"uselist": False, "single_parent": True, "lazy": "joined"},
     )
     bookings: list["Booking"] = Relationship(back_populates="guest")
 
