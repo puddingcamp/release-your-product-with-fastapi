@@ -3,12 +3,12 @@ from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 
 from appserver.apps.account.models import User
-from appserver.apps.calendar.models import Calendar
+from appserver.apps.calendar.models import Calendar, TimeSlot
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
 
 from .exceptions import CalendarAlreadyExistsError, CalendarNotFoundError, GuestPermissionError, HostNotFoundError
-from .schemas import CalendarCreateIn, CalendarDetailOut, CalendarOut, CalendarUpdateIn
+from .schemas import CalendarCreateIn, CalendarDetailOut, CalendarOut, CalendarUpdateIn, TimeSlotCreateIn, TimeSlotOut
 
 router = APIRouter()
 
@@ -96,3 +96,27 @@ async def update_calendar(
     await session.commit()
 
     return user.calendar
+
+
+@router.post(
+    "/time-slots",
+    status_code=status.HTTP_201_CREATED,
+    response_model=TimeSlotOut,
+)
+async def create_time_slot(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    payload: TimeSlotCreateIn
+) -> TimeSlotOut:
+    if not user.is_host:
+        raise GuestPermissionError()
+    
+    time_slot = TimeSlot(
+        calendar_id=user.calendar.id,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        weekdays=payload.weekdays,
+    )
+    session.add(time_slot)
+    await session.commit()
+    return time_slot

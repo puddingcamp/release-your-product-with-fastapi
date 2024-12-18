@@ -1,3 +1,4 @@
+from datetime import time
 from typing import Annotated
 
 from pydantic import AwareDatetime, EmailStr, AfterValidator
@@ -44,3 +45,15 @@ class CalendarUpdateIn(SQLModel):
     )
 
 
+class TimeSlotCreateIn(SQLModel):
+    start_time: time
+    end_time: time
+    weekdays: list[int]
+
+
+class TimeSlotOut(SQLModel):
+    start_time: time
+    end_time: time
+    weekdays: list[int]
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
