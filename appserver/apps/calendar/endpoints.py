@@ -1,15 +1,15 @@
 from fastapi import APIRouter, status
-from sqlmodel import select, and_, func
+from sqlmodel import select, and_, func, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
 
 from appserver.apps.account.models import User
-from appserver.apps.calendar.models import Calendar, TimeSlot
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
 
-from .exceptions import CalendarAlreadyExistsError, CalendarNotFoundError, GuestPermissionError, HostNotFoundError, TimeSlotOverlapError
-from .schemas import CalendarCreateIn, CalendarDetailOut, CalendarOut, CalendarUpdateIn, TimeSlotCreateIn, TimeSlotOut
+from .exceptions import CalendarAlreadyExistsError, CalendarNotFoundError, GuestPermissionError, HostNotFoundError, TimeSlotNotFoundError, TimeSlotOverlapError
+from .models import Booking, Calendar, TimeSlot
+from .schemas import BookingCreateIn, BookingOut, CalendarCreateIn, CalendarDetailOut, CalendarOut, CalendarUpdateIn, TimeSlotCreateIn, TimeSlotOut
 
 router = APIRouter()
 
@@ -159,3 +159,49 @@ async def create_time_slot(
     session.add(time_slot)
     await session.commit()
     return time_slot
+
+
+@router.post(
+    "/bookings/{host_username}",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BookingOut,
+)
+async def create_booking(
+    host_username: str,
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    payload: BookingCreateIn
+) -> BookingOut:
+    stmt = (
+        select(User)
+        .where(User.username == host_username)
+        .where(User.is_host.is_(true()))
+    )
+    result = await session.execute(stmt)
+    host = result.scalar_one_or_none()
+    if host is None or host.calendar is None:
+        raise HostNotFoundError()
+
+    stmt = (
+        select(TimeSlot)
+        .where(TimeSlot.id == payload.time_slot_id)
+        .where(TimeSlot.calendar_id == host.calendar.id)
+    )
+    result = await session.execute(stmt)
+    time_slot = result.scalar_one_or_none()
+    if time_slot is None:
+        raise TimeSlotNotFoundError()
+    if payload.when.weekday() not in time_slot.weekdays:
+        raise TimeSlotNotFoundError()
+
+    booking = Booking(
+        guest_id=user.id,
+        when=payload.when,
+        topic=payload.topic,
+        description=payload.description,
+        time_slot_id=payload.time_slot_id,
+    )
+    session.add(booking)
+    await session.commit()
+    await session.refresh(booking)
+    return booking

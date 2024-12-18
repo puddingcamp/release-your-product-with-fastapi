@@ -94,7 +94,10 @@ class Booking(SQLModel, table=True):
     description: str = Field(sa_type=Text, description="예약 설명")
 
     time_slot_id: int = Field(foreign_key="time_slots.id")
-    time_slot: TimeSlot = Relationship(back_populates="bookings")
+    time_slot: TimeSlot = Relationship(
+        back_populates="bookings",
+        sa_relationship_kwargs={"lazy": "joined"},
+    )
 
     guest_id: int = Field(foreign_key="users.id")
     guest: "User" = Relationship(back_populates="bookings")

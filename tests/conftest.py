@@ -1,3 +1,6 @@
+import calendar
+from datetime import time
+
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 import pytest
@@ -116,6 +119,21 @@ async def guest_user(db_session: AsyncSession):
 
 
 @pytest.fixture()
+async def cute_guest_user(db_session: AsyncSession):
+    user = account_models.User(
+        username="cute_guest",
+        hashed_password=hash_password("testtest"),
+        email="cute_guest@example.com",
+        display_name="귀여운 게스트",
+        is_host=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture()
 async def host_user_calendar(db_session: AsyncSession, host_user: account_models.User):
     calendar = calendar_models.Calendar(
         host_id=host_user.id,
@@ -128,3 +146,19 @@ async def host_user_calendar(db_session: AsyncSession, host_user: account_models
     await db_session.refresh(host_user)
     await db_session.flush()
     return calendar
+
+
+@pytest.fixture()
+async def time_slot_tuesday(
+    db_session: AsyncSession,
+    host_user_calendar: calendar_models.Calendar,
+):
+    time_slot = calendar_models.TimeSlot(
+        start_time=time(9, 0),
+        end_time=time(10, 0),
+        weekdays=[calendar.TUESDAY],
+        calendar_id=host_user_calendar.id,
+    )
+    db_session.add(time_slot)
+    await db_session.commit()
+    return time_slot
