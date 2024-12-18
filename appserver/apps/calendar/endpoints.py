@@ -115,21 +115,41 @@ async def create_time_slot(
     if not user.is_host:
         raise GuestPermissionError()
 
-    # 이미 존재하는 타임슬롯과 겹치는지 확인
-    stmt = select(TimeSlot).where(
-        and_(
-            TimeSlot.calendar_id == user.calendar.id,
-            TimeSlot.start_time < payload.end_time,
-            TimeSlot.end_time > payload.start_time
-        )
-    )
-    result = await session.execute(stmt)
-    existing_time_slots = result.scalars().all()
+    # 데이터베이스 엔진 확인
+    engine: Engine = session.bind
+    is_sqlite = engine.dialect.name == "sqlite"
 
-    for existing_time_slot in existing_time_slots:
-        if any(day in existing_time_slot.weekdays for day in payload.weekdays):
+    if is_sqlite:
+        # 이미 존재하는 타임슬롯과 겹치는지 확인
+        stmt = select(TimeSlot).where(
+            and_(
+                TimeSlot.calendar_id == user.calendar.id,
+                TimeSlot.start_time < payload.end_time,
+                TimeSlot.end_time > payload.start_time
+            )
+        )
+        result = await session.execute(stmt)
+        existing_time_slots = result.scalars().all()
+
+        for existing_time_slot in existing_time_slots:
+            if any(day in existing_time_slot.weekdays for day in payload.weekdays):
+                raise TimeSlotOverlapError()
+    else:
+        # PostgreSQL: SQL에서 교집합 확인
+        stmt = select(TimeSlot).where(
+            and_(
+                TimeSlot.calendar_id == user.calendar.id,
+                func.jsonb_array_elements_text(TimeSlot.weekdays).in_(payload.weekdays),
+                TimeSlot.start_time < payload.end_time,
+                TimeSlot.end_time > payload.start_time
+            )
+        )
+        result = await session.execute(stmt)
+        existing_time_slot = result.scalar_one_or_none()
+
+        if existing_time_slot:
             raise TimeSlotOverlapError()
-        
+
     time_slot = TimeSlot(
         calendar_id=user.calendar.id,
         start_time=payload.start_time,
