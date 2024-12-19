@@ -108,3 +108,21 @@ async def test_과거_일자에_예약을_생성하면_HTTP_422_응답을_한다
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_중복_신청을_하면_HTTP_422_응답을_한다(
+    host_user: User,
+    client_with_guest_auth: TestClient,
+    valid_booking_payload: dict,
+):
+    response = client_with_guest_auth.post(
+        f"/bookings/{host_user.username}",
+        json=valid_booking_payload,
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+
+    response = client_with_guest_auth.post(
+        f"/bookings/{host_user.username}",
+        json=valid_booking_payload,
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

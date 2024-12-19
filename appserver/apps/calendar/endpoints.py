@@ -9,6 +9,7 @@ from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
 
 from .exceptions import (
+    BookingAlreadyExistsError,
     CalendarAlreadyExistsError,
     CalendarNotFoundError,
     GuestPermissionError,
@@ -219,6 +220,18 @@ async def create_booking(
         raise TimeSlotNotFoundError()
     if payload.when.weekday() not in time_slot.weekdays:
         raise TimeSlotNotFoundError()
+
+    stmt = (
+        select(func.count())
+        .select_from(Booking)
+        .where(Booking.guest_id == user.id)
+        .where(Booking.when == payload.when)
+        .where(Booking.time_slot_id == payload.time_slot_id)
+    )
+    result = await session.execute(stmt)
+    exists = result.scalar_one_or_none()
+    if exists:
+        raise BookingAlreadyExistsError()
 
     booking = Booking(
         guest_id=user.id,
