@@ -1,6 +1,7 @@
+from typing import Annotated, Literal
 from datetime import datetime, timezone
-from fastapi import APIRouter, status
-from sqlmodel import select, and_, func, true
+from fastapi import APIRouter, status, Query, HTTPException
+from sqlmodel import select, and_, func, true, extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
 
@@ -14,6 +15,7 @@ from .exceptions import (
     CalendarNotFoundError,
     GuestPermissionError,
     HostNotFoundError,
+    InvalidYearMonthError,
     PastBookingError,
     SelfBookingError,
     TimeSlotNotFoundError,
@@ -244,3 +246,28 @@ async def create_booking(
     await session.commit()
     await session.refresh(booking)
     return booking
+
+
+@router.get(
+    "/bookings",
+    status_code=status.HTTP_200_OK,
+    response_model=list[BookingOut],
+)
+async def get_host_bookings_by_month(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    page: Annotated[int, Query(ge=1)],
+    page_size: Annotated[int, Query(ge=1, le=50)],
+) -> list[BookingOut]:
+    if not user.is_host or user.calendar is None:
+        raise HostNotFoundError()
+    
+    stmt = (
+        select(Booking)
+        .where(Booking.time_slot.has(TimeSlot.calendar_id == user.calendar.id))
+        .order_by(Booking.when.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
