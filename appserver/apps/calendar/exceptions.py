@@ -47,3 +47,20 @@ class TimeSlotNotFoundError(HTTPException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="시간대가 없습니다.",
         )
+
+
+class SelfBookingError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="자기 자신에게는 부킹을 할 수 없습니다.",
+        )
+
+
+
+class PastBookingError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="과거 일자에는 부킹을 할 수 없습니다.",
+        )

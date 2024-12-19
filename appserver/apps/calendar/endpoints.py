@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, status
 from sqlmodel import select, and_, func, true
 from sqlalchemy.exc import IntegrityError
@@ -7,9 +8,28 @@ from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
 
-from .exceptions import CalendarAlreadyExistsError, CalendarNotFoundError, GuestPermissionError, HostNotFoundError, TimeSlotNotFoundError, TimeSlotOverlapError
+from .exceptions import (
+    CalendarAlreadyExistsError,
+    CalendarNotFoundError,
+    GuestPermissionError,
+    HostNotFoundError,
+    PastBookingError,
+    SelfBookingError,
+    TimeSlotNotFoundError,
+    TimeSlotOverlapError,
+)
 from .models import Booking, Calendar, TimeSlot
-from .schemas import BookingCreateIn, BookingOut, CalendarCreateIn, CalendarDetailOut, CalendarOut, CalendarUpdateIn, TimeSlotCreateIn, TimeSlotOut
+from .schemas import (
+    BookingCreateIn,
+    BookingOut,
+    CalendarCreateIn,
+    CalendarDetailOut,
+    CalendarOut,
+    CalendarUpdateIn,
+    TimeSlotCreateIn,
+    TimeSlotOut,
+)
+
 
 router = APIRouter()
 
@@ -181,6 +201,12 @@ async def create_booking(
     host = result.scalar_one_or_none()
     if host is None or host.calendar is None:
         raise HostNotFoundError()
+
+    if user.id == host.id:
+        raise SelfBookingError()
+
+    if payload.when < datetime.now(timezone.utc).date():
+        raise PastBookingError()
 
     stmt = (
         select(TimeSlot)

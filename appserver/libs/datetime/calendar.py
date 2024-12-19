@@ -71,3 +71,33 @@ def get_range_days_of_month(year, month):
     #     result.append(day)
     
     return result + list(range(1, last_day + 1))
+
+
+from datetime import date, timedelta
+
+def get_next_weekday(weekday: int, start_date: date = None) -> date:
+    """
+    주어진 날짜를 기준으로 가장 가까운 요일의 날짜를 반환합니다.
+    만약 주어진 날짜가 없으면 오늘 날짜를 기준으로 합니다.
+
+    :param start_date: 기준 날짜 (기본값: 오늘)
+    :return: 가장 가까운 요일의 날짜
+
+    >>> import calendar
+    >>> from datetime import date
+    >>> target_date = date(2024, 12, 1)
+    >>> get_next_weekday(calendar.MONDAY, target_date)
+    datetime.date(2024, 12, 2)
+    >>> get_next_weekday(calendar.TUESDAY, target_date)
+    datetime.date(2024, 12, 3)
+    >>> get_next_weekday(calendar.WEDNESDAY, target_date)
+    datetime.date(2024, 12, 4)
+    """
+    if start_date is None:
+        start_date = date.today()
+
+    days_ahead = (weekday - start_date.weekday() + 7) % 7
+    if days_ahead == 0:
+        return start_date
+    else:
+        return start_date + timedelta(days=days_ahead)
