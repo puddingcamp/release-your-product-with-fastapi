@@ -91,3 +91,8 @@ class BookingOut(SQLModel):
     time_slot: TimeSlotOut
     created_at: AwareDatetime
     updated_at: AwareDatetime
+
+
+class SimpleBookingOut(SQLModel):
+    when: date
+    time_slot: TimeSlotOut

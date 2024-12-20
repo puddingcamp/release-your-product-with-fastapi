@@ -72,3 +72,11 @@ class BookingAlreadyExistsError(HTTPException):
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="이미 예약된 시간대입니다.",
         )
+
+
+class InvalidYearMonthError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="유효하지 않은 년도 또는 월입니다.",
+        )

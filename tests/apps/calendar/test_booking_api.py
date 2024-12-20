@@ -138,3 +138,38 @@ async def test_호스트는_페이지_단위로_자신에게_예약된_부킹_�
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert len(data) == len(host_bookings)
+
+
+@pytest.mark.parametrize(
+    "year, month",
+    [(2024, 12), (2025, 1)],
+)
+@pytest.mark.usefixtures("charming_host_bookings")
+async def test_게스트는_호스트의_캘린더의_예약_내역을_월_단위로_받는다(
+    client_with_guest_auth: TestClient,
+    host_bookings: list[Booking],
+    host_user: User,
+    year: int,
+    month: int,
+):
+    params = {
+        "year": year,
+        "month": month,
+    }
+    response = client_with_guest_auth.get(
+        f"/calendar/{host_user.username}/bookings",
+        params=params,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    booking_dates = frozenset([
+        booking.when.isoformat()
+        for booking in host_bookings
+        if booking.when.year == params["year"] and booking.when.month == params["month"]
+    ])
+    assert not not data
+    assert len(data) == len(booking_dates)
+    assert all([item["when"] in booking_dates for item in data])
+ 
