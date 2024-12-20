@@ -23,13 +23,13 @@ async def db_session():
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
 
-        session_factory = create_session(engine)
+        session_factory = create_session(conn)
         async with session_factory() as session:
             yield session
 
         await conn.run_sync(SQLModel.metadata.drop_all)
 
-    await conn.rollback()
+        await conn.rollback()
 
     await engine.dispose()
 
@@ -89,6 +89,24 @@ def client_with_guest_auth(fastapi_app: FastAPI, guest_user: account_models.User
 
 
 @pytest.fixture()
+def client_with_smart_guest_auth(fastapi_app: FastAPI, smart_guest_user: account_models.User):
+    payload = LoginPayload.model_validate({
+        "username": smart_guest_user.username,
+        "password": "testtest",
+    })
+
+    with TestClient(fastapi_app) as client:
+        response = client.post("/account/login", json=payload.model_dump())
+        assert response.status_code == status.HTTP_200_OK
+
+        auth_token = response.cookies.get("auth_token")
+        assert auth_token is not None
+
+        client.cookies.set("auth_token", auth_token)
+        yield client
+
+
+@pytest.fixture()
 async def host_user(db_session: AsyncSession):
     user = account_models.User(
         username="puddingcamp",
@@ -125,6 +143,21 @@ async def guest_user(db_session: AsyncSession):
         hashed_password=hash_password("testtest"),
         email="puddingcafe@example.com",
         display_name="푸딩까페",
+        is_host=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture()
+async def smart_guest_user(db_session: AsyncSession):
+    user = account_models.User(
+        username="smart_guest",
+        hashed_password=hash_password("testtest"),
+        email="smart_guest@example.com",
+        display_name="스마트 게스트",
         is_host=False,
     )
     db_session.add(user)

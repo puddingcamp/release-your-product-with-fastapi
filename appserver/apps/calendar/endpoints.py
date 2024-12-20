@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, status, Query, HTTPException
 from sqlmodel import select, and_, func, true, extract
@@ -79,9 +79,10 @@ async def host_calendar_bookings(
     stmt = select(User).where(User.username == host_username)
     result = await session.execute(stmt)
     host = result.scalar_one_or_none()
+
     if host is None or host.calendar is None:
         raise HostNotFoundError()
-    
+
     stmt = (
         select(Booking)
         .where(Booking.time_slot.has(TimeSlot.calendar_id == host.calendar.id))
@@ -91,6 +92,29 @@ async def host_calendar_bookings(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+@router.get(
+    "/guest-calendar/bookings",
+    status_code=status.HTTP_200_OK,
+    response_model=list[BookingOut],
+)
+async def guest_calendar_bookings(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    page: Annotated[int, Query(ge=1)],
+    page_size: Annotated[int, Query(ge=1, le=50)],
+) -> list[BookingOut]:
+    stmt = (
+        select(Booking)
+        .where(Booking.guest_id == user.id)
+        .order_by(Booking.when.desc(), Booking.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
 
 
 @router.post(
@@ -300,3 +324,30 @@ async def get_host_bookings_by_month(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+@router.get(
+    "/bookings/{booking_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=BookingOut,
+)
+async def get_booking_by_id(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    booking_id: int
+) -> BookingOut:
+    stmt = select(Booking).where(Booking.id == booking_id)
+    if user.is_host and user.calendar is not None:
+        stmt = (
+            stmt
+            .join(Booking.time_slot)
+            .where((TimeSlot.calendar_id == user.calendar.id) | (Booking.guest_id == user.id))
+        )
+    else:
+        stmt = stmt.where(Booking.guest_id == user.id)
+
+    result = await session.execute(stmt)
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+    return booking

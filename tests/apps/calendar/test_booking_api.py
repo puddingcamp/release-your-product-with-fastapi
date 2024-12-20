@@ -1,7 +1,8 @@
 import calendar
 from datetime import date
-import pytest
 
+import pytest
+from pytest_lazy_fixtures import lf
 from fastapi import status
 from fastapi.testclient import TestClient
 
@@ -173,3 +174,38 @@ async def test_게스트는_호스트의_캘린더의_예약_내역을_월_단�
     assert len(data) == len(booking_dates)
     assert all([item["when"] in booking_dates for item in data])
  
+
+async def test_게스트는_자신의_캘린더의_예약_내역을_페이지_단위로_받는다(
+    client_with_guest_auth: TestClient,
+    host_bookings: list[Booking],
+    charming_host_bookings: list[Booking],
+):
+    response = client_with_guest_auth.get("/guest-calendar/bookings", params={"page": 1, "page_size": 50})
+
+    assert response.status_code == status.HTTP_200_OK
+
+    id_set = frozenset([booking.id for booking in host_bookings] + [booking.id for booking in charming_host_bookings])
+    data = response.json()
+    assert len(data) == len(id_set)
+    assert all([item["id"] in id_set for item in data])
+
+
+@pytest.mark.parametrize(
+    "client, expected_status_code",
+    [
+        (lf("client_with_guest_auth"), status.HTTP_200_OK),
+        (lf("client_with_smart_guest_auth"), status.HTTP_404_NOT_FOUND),
+    ],
+)
+async def test_사용자는_특정_예약_내역_데이터를_받는다(
+    host_bookings: list[Booking],
+    client: TestClient,
+    expected_status_code: int,
+):
+    response = client.get(f"/bookings/{host_bookings[0].id}")
+
+    assert response.status_code == expected_status_code
+    
+    data = response.json()
+    if expected_status_code == status.HTTP_200_OK:
+        assert data["id"] == host_bookings[0].id
