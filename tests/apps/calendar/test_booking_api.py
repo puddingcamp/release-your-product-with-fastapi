@@ -389,3 +389,27 @@ async def test_게스트는_자신의_부킹을_취소만_할_수_있다(
     response = client_with_guest_auth.delete(f"/guest-bookings/{booking.id}")
     assert response.status_code == expected_status_code
 
+
+async def test_게스트는_자신이_신청한_부킹에_파일을_업로드할_수_있다(
+    client_with_guest_auth: TestClient,
+    host_bookings: list[Booking],
+):
+    booking = host_bookings[-1]
+
+    # Create temporary files to upload
+    file_content_1 = b"File content 1"
+    file_content_2 = b"File content 2"
+    file_content_3 = b"File content 3"
+
+    files = [
+        ("files", ("file1.txt", file_content_1, "text/plain")),
+        ("files", ("file2.txt", file_content_2, "text/plain")),
+        ("files", ("file3.txt", file_content_3, "text/plain")),
+    ]
+
+    response = client_with_guest_auth.post(f"/bookings/{booking.id}/upload", files=files)
+    assert response.status_code == status.HTTP_201_CREATED
+
+    data = response.json()
+    assert len(data) == 3
+    assert data == ["file1.txt", "file2.txt", "file3.txt"]

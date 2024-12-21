@@ -1,6 +1,6 @@
 from typing import Annotated
 from datetime import datetime, timezone
-from fastapi import APIRouter, status, Query, HTTPException
+from fastapi import APIRouter, File, UploadFile, status, Query, HTTPException
 from sqlmodel import select, and_, func, true, extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
@@ -522,5 +522,20 @@ async def cancel_guest_booking(
         booking.attendance_status = AttendanceStatus.CANCELLED.value
         await session.commit()
         await session.refresh(booking)
-        
+
     return booking
+
+
+@router.post(
+    "/bookings/{booking_id}/upload",
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_file(
+    booking_id: int,
+    files: Annotated[list[UploadFile], File(min_length=1, max_length=3)],
+):
+    result = []
+    for file in files:
+        result.append(file.filename)
+    return result
+
