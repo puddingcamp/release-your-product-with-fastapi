@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
+from appserver.libs.datetime.datetime import utcnow
 
 from .exceptions import (
     BookingAlreadyExistsError,
@@ -15,12 +16,13 @@ from .exceptions import (
     CalendarNotFoundError,
     GuestPermissionError,
     HostNotFoundError,
-    InvalidYearMonthError,
     PastBookingError,
     SelfBookingError,
     TimeSlotNotFoundError,
     TimeSlotOverlapError,
 )
+
+from .deps import UtcNow
 from .models import Booking, Calendar, TimeSlot
 from .schemas import (
     BookingCreateIn,
@@ -29,6 +31,8 @@ from .schemas import (
     CalendarDetailOut,
     CalendarOut,
     CalendarUpdateIn,
+    GuestBookingUpdateIn,
+    HostBookingUpdateIn,
     SimpleBookingOut,
     TimeSlotCreateIn,
     TimeSlotOut,
@@ -350,4 +354,106 @@ async def get_booking_by_id(
     booking = result.scalar_one_or_none()
     if booking is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+    return booking
+
+
+@router.patch(
+    "/bookings/{booking_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=BookingOut,
+)
+async def host_update_booking(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    booking_id: int,
+    now: UtcNow,
+    payload: HostBookingUpdateIn
+) -> BookingOut:
+    if not user.is_host or user.calendar is None:
+        raise HostNotFoundError()
+
+    stmt = (
+        select(Booking)
+        .join(Booking.time_slot)
+        .where(Booking.id == booking_id)
+        .where(TimeSlot.calendar_id == user.calendar.id)
+    )
+    result = await session.execute(stmt)
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+    
+    if booking.when < now.date():
+        raise PastBookingError()
+        
+    if payload.time_slot_id is not None:
+        stmt = (
+            select(TimeSlot)
+            .where(TimeSlot.id == payload.time_slot_id)
+            .where(TimeSlot.calendar_id == user.calendar.id)
+        )
+        result = await session.execute(stmt)
+        time_slot = result.scalar_one_or_none()
+        if time_slot is None:
+            raise TimeSlotNotFoundError()
+        
+        booking.time_slot_id = time_slot.id
+
+    if payload.when is not None:
+        if payload.when.weekday() not in booking.time_slot.weekdays:
+            raise TimeSlotNotFoundError()
+        booking.when = payload.when
+
+    await session.commit()
+    await session.refresh(booking)
+    return booking
+
+
+@router.patch(
+    "/guest-bookings/{booking_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=BookingOut,
+)
+async def guest_update_booking(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    booking_id: int,
+    now: UtcNow,
+    payload: GuestBookingUpdateIn
+) -> BookingOut:
+    stmt = (
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .where(Booking.guest_id == user.id)
+    )
+    result = await session.execute(stmt)
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+    
+    if booking.when <= now.date():
+        raise PastBookingError()
+
+    if payload.time_slot_id is not None:
+        stmt = (
+            select(TimeSlot)
+            .where(TimeSlot.id == payload.time_slot_id)
+            .where(TimeSlot.calendar_id == booking.time_slot.calendar_id)
+        )
+        result = await session.execute(stmt)
+        time_slot = result.scalar_one_or_none()
+        if time_slot is None:
+            raise TimeSlotNotFoundError()
+        booking.time_slot_id = time_slot.id
+
+    if payload.topic is not None:
+        booking.topic = payload.topic
+    if payload.description is not None:
+        booking.description = payload.description
+    if payload.when is not None:
+        if payload.when.weekday() not in booking.time_slot.weekdays:
+            raise TimeSlotNotFoundError()
+        booking.when = payload.when
+    await session.commit()
+    await session.refresh(booking)
     return booking
