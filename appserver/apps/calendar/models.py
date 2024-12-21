@@ -4,7 +4,9 @@ from datetime import date, time, timezone, datetime
 from sqlalchemy.dialects.postgresql import JSONB
 from pydantic import AwareDatetime
 from sqlalchemy_utc import UtcDateTime
-from sqlmodel import SQLModel, Field, Relationship, Text, JSON, func
+from sqlmodel import SQLModel, Field, Relationship, Text, JSON, func, String
+
+from .enums import AttendanceStatus
 
 if TYPE_CHECKING:
     from appserver.apps.account.models import User
@@ -92,6 +94,12 @@ class Booking(SQLModel, table=True):
     when: date
     topic: str
     description: str = Field(sa_type=Text, description="예약 설명")
+    # 참석 상태 종류
+    attendance_status: AttendanceStatus = Field(
+        default=AttendanceStatus.SCHEDULED,
+        description="참석 상태",
+        sa_type=String,
+    )
 
     time_slot_id: int = Field(foreign_key="time_slots.id")
     time_slot: TimeSlot = Relationship(
