@@ -1,8 +1,10 @@
 from datetime import date, time
 from typing import Annotated
 
+from fastapi_storages import StorageFile
 from pydantic import AwareDatetime, EmailStr, AfterValidator, model_validator
 from sqlmodel import SQLModel, Field
+from sqlmodel.main import SQLModelConfig
 from appserver.libs.collections.sort import deduplicate_and_sort
 
 from .enums import AttendanceStatus
@@ -85,6 +87,15 @@ class BookingCreateIn(SQLModel):
     time_slot_id: int
 
 
+class BookingFileOut(SQLModel):
+    id: int
+    file: StorageFile
+
+    model_config = SQLModelConfig(
+        arbitrary_types_allowed=True,
+    )
+
+
 class BookingOut(SQLModel):
     id: int
     when: date
@@ -92,6 +103,7 @@ class BookingOut(SQLModel):
     description: str
     time_slot: TimeSlotOut
     attendance_status: AttendanceStatus
+    files: list[BookingFileOut]
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

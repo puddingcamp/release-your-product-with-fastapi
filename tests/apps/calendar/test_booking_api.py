@@ -396,7 +396,6 @@ async def test_게스트는_자신이_신청한_부킹에_파일을_업로드할
 ):
     booking = host_bookings[-1]
 
-    # Create temporary files to upload
     file_content_1 = b"File content 1"
     file_content_2 = b"File content 2"
     file_content_3 = b"File content 3"
@@ -411,5 +410,7 @@ async def test_게스트는_자신이_신청한_부킹에_파일을_업로드할
     assert response.status_code == status.HTTP_201_CREATED
 
     data = response.json()
-    assert len(data) == 3
-    assert data == ["file1.txt", "file2.txt", "file3.txt"]
+    assert len(data["files"]) == 3
+
+    file_names = [file_name["file"].split("/")[-1] for file_name in data["files"]]
+    assert file_names == ["file1.txt", "file2.txt", "file3.txt"]
