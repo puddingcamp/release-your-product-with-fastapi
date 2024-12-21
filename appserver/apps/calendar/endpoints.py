@@ -480,15 +480,47 @@ async def update_booking_status(
         .join(Booking.time_slot)
         .where(Booking.id == booking_id)
         .where(TimeSlot.calendar_id == user.calendar.id)
-        .where(Booking.when >= now.date())
     )
     result = await session.execute(stmt)
     booking = result.scalar_one_or_none()
     if booking is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
-   
+    
+    if booking.when < now.date():
+        raise PastBookingError()
+    
     booking.attendance_status = payload.attendance_status
     await session.commit()
     await session.refresh(booking)
     return booking
- 
+
+
+@router.delete(
+    "/guest-bookings/{booking_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_guest_booking(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    booking_id: int,
+    now: UtcNow,
+) -> None:
+    stmt = (
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .where(Booking.guest_id == user.id)
+    )
+    result = await session.execute(stmt)
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+    
+    if booking.when <= now.date():
+        raise PastBookingError()
+
+    if booking.attendance_status != AttendanceStatus.CANCELLED.value:
+        booking.attendance_status = AttendanceStatus.CANCELLED.value
+        await session.commit()
+        await session.refresh(booking)
+        
+    return booking
