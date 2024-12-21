@@ -13,6 +13,7 @@ from appserver.apps.account import models as account_models
 from appserver.apps.calendar import models as calendar_models
 from appserver.apps.account.utils import hash_password
 from appserver.apps.account.schemas import LoginPayload
+from appserver.libs.datetime.datetime import utcnow
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +43,11 @@ def fastapi_app(db_session: AsyncSession):
     async def override_use_session():
         yield db_session
 
+    def override_utcnow():
+        return utcnow().replace(year=2024, month=12, day=5)
+
     app.dependency_overrides[use_session] = override_use_session
+    app.dependency_overrides[utcnow] = override_utcnow
     return app
 
 

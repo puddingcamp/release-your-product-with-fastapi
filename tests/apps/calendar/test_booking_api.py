@@ -6,6 +6,7 @@ from pytest_lazy_fixtures import lf
 from fastapi import status
 from fastapi.testclient import TestClient
 
+from appserver.apps.calendar.enums import AttendanceStatus
 from appserver.apps.calendar.schemas import BookingOut
 from appserver.apps.account.models import User
 from appserver.apps.calendar.models import Booking, TimeSlot
@@ -339,3 +340,33 @@ async def test_게스트는_자신의_부킹에_대해_주제_설명_일자_타�
             assert before_booking["time_slot"]["weekdays"] == data["time_slot"]["weekdays"]
         else:
             assert before_booking[field_name] == data[field_name]
+
+
+@pytest.mark.parametrize(
+    "attendance_status",
+    [
+        (AttendanceStatus.SCHEDULED),
+        (AttendanceStatus.ATTENDED),
+        (AttendanceStatus.NO_SHOW),
+        (AttendanceStatus.CANCELLED),
+        (AttendanceStatus.SAME_DAY_CANCEL),
+        (AttendanceStatus.LATE),
+    ],
+)
+async def test_호스트는_자신에게_신청한_부킹의_참석_상태를_변경할_수_있다(
+    client_with_auth: TestClient,
+    host_bookings: list[Booking],
+    attendance_status: AttendanceStatus,
+):
+    payload = {
+        "attendance_status": attendance_status,
+    }
+    booking = host_bookings[-1]
+    response = client_with_auth.patch(f"/bookings/{booking.id}/status", json=payload)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response = client_with_auth.get(f"/bookings/{booking.id}")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["attendance_status"] == attendance_status.value

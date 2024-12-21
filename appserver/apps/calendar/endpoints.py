@@ -8,8 +8,8 @@ from sqlalchemy.engine import Engine
 from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from db import DbSessionDep
-from appserver.libs.datetime.datetime import utcnow
 
+from .enums import AttendanceStatus
 from .exceptions import (
     BookingAlreadyExistsError,
     CalendarAlreadyExistsError,
@@ -32,6 +32,7 @@ from .schemas import (
     CalendarOut,
     CalendarUpdateIn,
     GuestBookingUpdateIn,
+    HostBookingStatusUpdateIn,
     HostBookingUpdateIn,
     SimpleBookingOut,
     TimeSlotCreateIn,
@@ -457,3 +458,37 @@ async def guest_update_booking(
     await session.commit()
     await session.refresh(booking)
     return booking
+
+
+@router.patch(
+    "/bookings/{booking_id}/status",
+    status_code=status.HTTP_200_OK,
+    response_model=BookingOut,
+)
+async def update_booking_status(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+    booking_id: int,
+    payload: HostBookingStatusUpdateIn,
+    now: UtcNow,
+) -> BookingOut:
+    if not user.is_host or user.calendar is None:
+        raise HostNotFoundError()
+
+    stmt = (
+        select(Booking)
+        .join(Booking.time_slot)
+        .where(Booking.id == booking_id)
+        .where(TimeSlot.calendar_id == user.calendar.id)
+        .where(Booking.when >= now.date())
+    )
+    result = await session.execute(stmt)
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
+   
+    booking.attendance_status = payload.attendance_status
+    await session.commit()
+    await session.refresh(booking)
+    return booking
+ 
