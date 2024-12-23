@@ -7,7 +7,7 @@ from sqlalchemy.engine import Engine
 
 from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
-from db import DbSessionDep
+from appserver.db import DbSessionDep
 
 from .enums import AttendanceStatus
 from .exceptions import (

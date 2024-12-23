@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel
 
-from db import create_engine, create_session, use_session
+from appserver.db import create_engine, create_session, use_session
 from appserver.app import include_routers
 from appserver.apps.account import models as account_models
 from appserver.apps.calendar import models as calendar_models

@@ -4,7 +4,7 @@ from sqlmodel import select, func, update, delete
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 
-from db import DbSessionDep
+from appserver.db import DbSessionDep
 from .models import User
 from .exceptions import DuplicatedUsernameError, DuplicatedEmailError, PasswordMismatchError, UserNotFoundError
 from .schemas import LoginPayload, SignupPayload, UpdateUserPayload, UserDetailOut, UserOut

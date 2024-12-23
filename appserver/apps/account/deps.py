@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from fastapi import Depends, Cookie
 
-from db import DbSessionDep
+from appserver.db import DbSessionDep
 
 from .models import User
 from .utils import decode_token, ACCESS_TOKEN_EXPIRE_MINUTES
