@@ -30,7 +30,7 @@ class Calendar(SQLModel, table=True):
     host_id: int = Field(foreign_key="users.id", unique=True)
     host: "User" = Relationship(
         back_populates="calendar",
-        sa_relationship_kwargs={"uselist": False, "single_parent": True},
+        sa_relationship_kwargs={"uselist": False, "single_parent": True, "lazy": "joined"},
     )
 
     time_slots: list["TimeSlot"] = Relationship(back_populates="calendar")
@@ -53,6 +53,8 @@ class Calendar(SQLModel, table=True):
         },
     )
 
+    def __str__(self):
+        return f"{self.host} 캘린더"
 
 
 class TimeSlot(SQLModel, table=True):
@@ -67,7 +69,10 @@ class TimeSlot(SQLModel, table=True):
     )
 
     calendar_id: int = Field(foreign_key="calendars.id")
-    calendar: Calendar = Relationship(back_populates="time_slots")
+    calendar: Calendar = Relationship(
+        back_populates="time_slots",
+        sa_relationship_kwargs={"lazy": "joined"},
+    )
 
     bookings: list["Booking"] = Relationship(back_populates="time_slot")
 
@@ -88,6 +93,9 @@ class TimeSlot(SQLModel, table=True):
             "onupdate": lambda: datetime.now(timezone.utc),
         },
     )
+
+    def __str__(self):
+        return f"{self.calendar}. {self.start_time} - {self.end_time} {self.weekdays}"
 
 
 
@@ -134,6 +142,9 @@ class Booking(SQLModel, table=True):
         },
     )
 
+    def __str__(self):
+        return f"{self.when} {self.time_slot.start_time} - {self.time_slot.end_time}"
+
 
 class BookingFile(SQLModel, table=True):
     __tablename__ = "booking_files"
@@ -152,3 +163,6 @@ class BookingFile(SQLModel, table=True):
     model_config = SQLModelConfig(
         arbitrary_types_allowed=True,
     )
+
+    def __str__(self):
+        return self.file.name

@@ -49,6 +49,9 @@ class User(SQLModel, table=True):
         },
     )
 
+    def __str__(self) -> str:
+        return f"{self.username} ({self.email})"
+
 
 class OAuthAccount(SQLModel, table=True):
     __tablename__ = "oauth_accounts"
