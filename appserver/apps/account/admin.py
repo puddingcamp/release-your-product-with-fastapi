@@ -1,6 +1,17 @@
+import random
+import string
 from datetime import datetime
+from typing import Any, Type
+
 import wtforms as wtf
-from sqladmin import ModelView
+from fastapi import Request
+from sqladmin import ModelView, fields
+from sqlmodel import select
+from sqlalchemy.sql.expression import Select, select
+
+from appserver.apps.account.enums import AccountStatus
+from appserver.apps.account.utils import hash_password
+
 from .models import OAuthAccount, User
 
 
@@ -15,6 +26,7 @@ class UserAdmin(ModelView, model=User):
         User.username,
         User.display_name,
         User.is_host,
+        User.status,
         User.created_at,
         User.updated_at,
     ]
@@ -23,6 +35,7 @@ class UserAdmin(ModelView, model=User):
         User.id,
         User.email,
         User.username,
+        User.status,
         User.created_at,
         User.updated_at,
     ]
@@ -32,12 +45,20 @@ class UserAdmin(ModelView, model=User):
         User.username: "사용자 계정 ID",
         User.display_name: "표시 이름",
         User.is_host: "호스트 여부",
+        User.status: "상태",
         User.created_at: "생성 일시",
         User.updated_at: "수정 일시",
     }
     column_default_sort = (User.created_at, True)
 
-    form_columns = [User.email, User.username, User.display_name, User.is_host, User.hashed_password]
+    form_columns = [
+        User.email,
+        User.username,
+        User.display_name,
+        User.is_host,
+        User.status,
+        User.hashed_password,
+    ]
     form_overrides = {
         "email": wtf.EmailField,
     }
@@ -46,10 +67,70 @@ class UserAdmin(ModelView, model=User):
     }
     form_ajax_refs = {
         "calendar": {
-            "fields": ["id", "description"],
+           "fields": ["id", "description"],
             "order_by": "id",
         },
     }
+
+    async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        if is_created:
+            data["hashed_password"] = hash_password(data["hashed_password"])
+        else:
+            if model.hashed_password != data["hashed_password"]:
+                data["hashed_password"] = hash_password(data["hashed_password"])
+
+    async def insert_model(self, request: Request, data: dict) -> Any:
+        data["hashed_password"] = hash_password(data["hashed_password"])
+        return await super().insert_model(request, data)
+
+    async def update_model(self, request: Request, pk: str, data: dict) -> Any:
+        async with self.session_maker() as session:
+            obj: User = await session.get(User, pk)
+            
+        if obj.hashed_password != data["hashed_password"]:
+            data["hashed_password"] = hash_password(data["hashed_password"])
+        return await super().update_model(request, pk, data)
+
+    async def on_model_delete(self, model: User, request: Request) -> None:
+        random_string = "".join(random.choices(string.ascii_letters + string.digits, k=8))
+        model.username = f"deleted/{random_string}"
+        model.email = f"deleted/{random_string}@localhost"
+        model.hashed_password = ""
+        model.display_name = ""
+    
+    async def delete_model(self, request: Request, pk: Any) -> None:
+        async with self.session_maker() as session:
+            obj: User = await session.get(User, pk)
+
+            await self.on_model_delete(obj, request)
+
+            obj.status = AccountStatus.DELETED.value
+            await session.commit()
+            await session.refresh(obj)
+
+            await self.after_model_delete(obj, request)
+
+    async def after_model_delete(self, model: User, request: Request) -> None:
+        async with self.session_maker() as session:
+            stmt = select(OAuthAccount).where(OAuthAccount.user_id == model.id)
+            result = await session.execute(stmt)
+            for oauth_account in result.scalars().all():
+                await session.delete(oauth_account)
+            await session.commit()
+
+    async def scaffold_form(self, rules: list[str] | None = None) -> Type[wtf.Form]:
+        form = await super().scaffold_form(rules)
+        form.status = fields.SelectField(
+            label="상태",
+            allow_blank=User.status.nullable,
+            choices=[(member.value, member.name) for member in AccountStatus],
+        )
+        return form
+
+    def list_query(self, request: Request) -> Select:
+        stmt = super().list_query(request)
+        stmt = stmt.where(~User.is_deleted)
+        return stmt
 
 
 class OAuthAccountAdmin(ModelView, model=OAuthAccount):
@@ -86,4 +167,3 @@ class OAuthAccountAdmin(ModelView, model=OAuthAccount):
             "order_by": "id",
         },
     }
-

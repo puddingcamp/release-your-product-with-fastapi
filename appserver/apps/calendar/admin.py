@@ -1,10 +1,16 @@
 import os
-
 from datetime import datetime
+
+from sqlalchemy import String
 import wtforms as wtf
 from sqladmin import ModelView
+from sqlmodel import Unicode, or_, cast, union
 from markupsafe import Markup
+from sqlalchemy.sql.expression import Select, select
 
+from appserver.libs.query import exact_match_list_json
+
+from appserver.db import engine
 from .models import Booking, BookingFile, Calendar, TimeSlot
 
 
@@ -58,6 +64,35 @@ class CalendarAdmin(ModelView, model=Calendar):
             "order_by": "id",
         },
     }
+
+    def search_query(self, stmt: Select, term: str) -> Select:
+        # 원래 search_query의 구현에서 따온 부분
+        join_expressions = []
+        for field in self._search_fields:
+            model = self.model
+            parts = field.split(".")
+            for part in parts[:-1]:
+                model = getattr(model, part).mapper.class_
+                stmt = stmt.join(model)
+
+            field = getattr(model, parts[-1])
+            join_expressions.append(cast(field, String).ilike(f"%{term}%"))
+
+        # JSON 쿼리를 처리하는 부분
+        dialect_name = engine.dialect.name # 엔진 이름을 가져옴
+        json_expressions = []
+        json_expressions.append(
+            exact_match_list_json(dialect_name, Calendar.topics, term, Unicode)
+        )
+
+        join_query = select(self.model.id).where(or_(*join_expressions))
+        json_query = select(self.model.id).where(or_(*json_expressions))
+
+        combined_query = union(join_query, json_query).subquery()
+
+        final_query = select(self.model).join(combined_query, self.model.id == combined_query.c.id)
+
+        return final_query
 
 
 WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
