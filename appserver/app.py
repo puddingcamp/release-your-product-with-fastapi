@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -12,6 +13,9 @@ app = FastAPI()
 def include_routers(_app: FastAPI):
     _app.include_router(account_router)
     _app.include_router(calendar_router)
+    
+    _app.mount("/static", StaticFiles(directory="static"), name="static")
+    _app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 include_routers(app)
 
