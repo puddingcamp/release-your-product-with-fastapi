@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from appserver.apps.account.endpoints import router as account_router
 from appserver.apps.calendar.endpoints import router as calendar_router
-from appserver.admin import include_admin_views
+from appserver.admin import include_admin_views, AdminAuthentication
 from .db import engine
 
 app = FastAPI()
@@ -17,7 +17,12 @@ include_routers(app)
 
 
 def init_admin(_app: FastAPI, _engine: AsyncEngine):
-    return Admin(_app, _engine)
+    return Admin(
+        _app,
+        _engine,
+        base_url="/@/-_-/@/nimda/",
+        authentication_backend=AdminAuthentication("secret-key"),
+    )
 
 
 admin = init_admin(app, engine)
