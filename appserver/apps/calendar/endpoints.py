@@ -556,3 +556,28 @@ async def upload_booking_files(
     await session.commit()
     await session.refresh(booking, ["files"])
     return booking
+
+
+@router.get(
+    "/timeslots/{host_username}",
+    status_code=status.HTTP_200_OK,
+    response_model=list[TimeSlotOut],
+)
+async def get_host_timeslots(
+    host_username: str,
+    session: DbSessionDep,
+) -> list[TimeSlotOut]:
+    stmt = (
+        select(User)
+        .where(User.username == host_username)
+        .where(User.is_active.is_(true()))
+        .where(User.is_host.is_(true()))
+    )
+    result = await session.execute(stmt)
+    host = result.scalar_one_or_none()
+    if host is None or host.calendar is None:
+        raise HostNotFoundError()
+    
+    stmt = select(TimeSlot).where(TimeSlot.calendar_id == host.calendar.id)
+    result = await session.execute(stmt)
+    return result.scalars().all()

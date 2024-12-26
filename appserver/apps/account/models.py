@@ -27,7 +27,7 @@ class User(SQLModel, table=True):
     hashed_password: str = Field(min_length=8, max_length=128, description="사용자 비밀번호")
     is_host: bool = Field(default=False, description="사용자가 호스트인지 여부")
     status: AccountStatus = Field(
-        default=AccountStatus.ACTIVE,
+        default=AccountStatus.ACTIVE.value,
         description="사용자 상태",
         sa_type=String,
     )

@@ -5,6 +5,9 @@ from fastapi import status
 from fastapi.testclient import TestClient
 import calendar
 
+from appserver.apps.calendar.models import TimeSlot
+from appserver.apps.account.models import User
+
 
 @pytest.mark.usefixtures("host_user_calendar")
 async def test_호스트_사용자는_유효한_타임슬롯_정보를_제출하여_타임슬롯을_생성할_수_있다(
@@ -100,3 +103,24 @@ async def test_겹치는_시간대가_있는_경우_HTTP_422_응답을_한다(
     response = client_with_auth.post("/time-slots", json=payload)
     assert response.status_code == expected_status_code
 
+
+async def test_호스트_사용자의_타임슬롯_목록을_조회할_수_있다(
+    client_with_auth: TestClient,
+    host_user: User,
+    time_slot_tuesday: TimeSlot,
+    time_slot_monday: TimeSlot,
+    time_slot_wednesday_thursday: TimeSlot,
+    time_slot_friday: TimeSlot,
+):
+    time_slots = [
+        time_slot_tuesday,
+        time_slot_monday,
+        time_slot_wednesday_thursday,
+        time_slot_friday,
+    ]
+    response = client_with_auth.get(f"/timeslots/{host_user.username}")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    host_timeslot_ids = [timeslot.id for timeslot in time_slots if timeslot.calendar_id == host_user.calendar.id]
+    assert len(data) == len(host_timeslot_ids)
