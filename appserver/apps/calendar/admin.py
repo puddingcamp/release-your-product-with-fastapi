@@ -169,7 +169,7 @@ def file_formatter(booking_file: BookingFile, *args, **kwargs) -> Markup:
     file = booking_file.file
     match os.path.splitext(file.name)[1]:    
         case ".jpg" | ".jpeg" | ".png" | ".gif" | ".bmp" | ".tiff" | ".ico" | ".webp":
-            return Markup(f'<img src="{file.name}" style="width: 100px; height: 100px;" />')
+            return Markup(f'<img src="/{file.path}" style="width: 100px; height: 100px;" />')
         case ".pdf":
             return Markup(f'<i class="fa-solid fa-file-pdf"></i> {file.name}')
         case ".doc" | ".docx":
