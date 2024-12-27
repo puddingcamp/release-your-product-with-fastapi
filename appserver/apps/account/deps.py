@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlmodel import select
-from fastapi import Depends, Cookie
+from fastapi import Depends, Cookie, Request
 
 from appserver.db import DbSessionDep
 
@@ -33,9 +33,11 @@ async def get_user(auth_token: str | None, db_session: AsyncSession) -> User | N
 
 
 async def get_current_user(
-    auth_token: Annotated[str, Cookie(...)],
+    request: Request,
     db_session: DbSessionDep,
 ):
+    raw_auth_token = request.cookies.get("auth_token") or request.headers.get("Authorization")
+    *__, auth_token = raw_auth_token.split(" ")
     user = await get_user(auth_token, db_session)
     if user is None:
         raise UserNotFoundError()
