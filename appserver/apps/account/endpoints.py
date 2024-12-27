@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
-from sqlmodel import select, func, update, delete
+from sqlmodel import select, func, update, delete, true
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 
@@ -124,3 +124,17 @@ async def unregister(user: CurrentUserDep, session: DbSessionDep) -> None:
     await session.execute(stmt)
     await session.commit()
     return None
+
+
+@router.get(
+    "/hosts",
+    status_code=status.HTTP_200_OK,
+    response_model=list[UserOut],
+)
+async def get_hosts(
+    user: CurrentUserDep,
+    session: DbSessionDep,
+) -> list[User]:
+    stmt = select(User).where(User.is_active.is_(true())).where(User.is_host.is_(true()))
+    result = await session.execute(stmt)
+    return result.scalars().all()
