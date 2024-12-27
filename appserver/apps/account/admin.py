@@ -72,12 +72,13 @@ class UserAdmin(ModelView, model=User):
         },
     }
 
-    async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
-        if is_created:
-            data["hashed_password"] = hash_password(data["hashed_password"])
-        else:
-            if model.hashed_password != data["hashed_password"]:
-                data["hashed_password"] = hash_password(data["hashed_password"])
+    # 이중으로 암호화해싱을 하므로 주석 처리 함.
+    # async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+    #     if is_created:
+    #         data["hashed_password"] = hash_password(data["hashed_password"])
+    #     else:
+    #         if model.hashed_password != data["hashed_password"]:
+    #             data["hashed_password"] = hash_password(data["hashed_password"])
 
     async def insert_model(self, request: Request, data: dict) -> Any:
         data["hashed_password"] = hash_password(data["hashed_password"])
