@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, UploadFile, status, Query, HTTPException
 from sqlmodel import select, and_, func, true, extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import selectinload
 
 from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
@@ -34,6 +35,7 @@ from .schemas import (
     GuestBookingUpdateIn,
     HostBookingStatusUpdateIn,
     HostBookingUpdateIn,
+    PaginatedBookingOut,
     SimpleBookingOut,
     TimeSlotCreateIn,
     TimeSlotOut,
@@ -102,23 +104,30 @@ async def host_calendar_bookings(
 @router.get(
     "/guest-calendar/bookings",
     status_code=status.HTTP_200_OK,
-    response_model=list[BookingOut],
+    response_model=PaginatedBookingOut,
 )
 async def guest_calendar_bookings(
     user: CurrentUserDep,
     session: DbSessionDep,
     page: Annotated[int, Query(ge=1)],
     page_size: Annotated[int, Query(ge=1, le=50)],
-) -> list[BookingOut]:
+) -> PaginatedBookingOut:
     stmt = (
         select(Booking)
+        .options(selectinload(Booking.files))
         .where(Booking.guest_id == user.id)
         .order_by(Booking.when.desc(), Booking.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    count_stmt = select(func.count()).select_from(Booking).where(Booking.guest_id == user.id)
+    count_result = await session.execute(count_stmt)
+    
+    return PaginatedBookingOut(
+        bookings=result.scalars().all(),
+        total_count=count_result.scalar_one_or_none() or 0,
+    )
 
 
 
@@ -328,7 +337,8 @@ async def get_host_bookings_by_month(
         .limit(page_size)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+
+    return result.scalars().all()    
 
 
 @router.get(
@@ -346,10 +356,11 @@ async def get_booking_by_id(
         stmt = (
             stmt
             .join(Booking.time_slot)
+            .options(selectinload(Booking.files))
             .where((TimeSlot.calendar_id == user.calendar.id) | (Booking.guest_id == user.id))
         )
     else:
-        stmt = stmt.where(Booking.guest_id == user.id)
+        stmt = stmt.where(Booking.guest_id == user.id).options(selectinload(Booking.files))
 
     result = await session.execute(stmt)
     booking = result.scalar_one_or_none()

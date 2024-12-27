@@ -5,7 +5,7 @@ from fastapi_storages import FileSystemStorage
 from fastapi_storages import StorageFile
 from fastapi_storages.integrations.sqlalchemy import FileType
 from sqlalchemy.dialects.postgresql import JSONB
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, computed_field
 from sqlalchemy_utc import UtcDateTime
 from sqlmodel import SQLModel, Field, Relationship, Text, JSON, func, String, Column
 from sqlmodel.main import SQLModelConfig
@@ -144,6 +144,11 @@ class Booking(SQLModel, table=True):
 
     def __str__(self):
         return f"{self.when} {self.time_slot.start_time} - {self.time_slot.end_time}"
+
+    @computed_field
+    @property
+    def host(self) -> "User":
+        return self.time_slot.calendar.host
 
 
 class BookingFile(SQLModel, table=True):

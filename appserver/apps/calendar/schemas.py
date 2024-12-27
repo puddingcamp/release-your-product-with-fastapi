@@ -2,9 +2,10 @@ from datetime import date, time
 from typing import Annotated
 
 from fastapi_storages import StorageFile
-from pydantic import AwareDatetime, EmailStr, AfterValidator, model_validator
+from pydantic import AwareDatetime, EmailStr, AfterValidator, computed_field, model_validator
 from sqlmodel import SQLModel, Field
 from sqlmodel.main import SQLModelConfig
+from appserver.apps.account.schemas import UserOut
 from appserver.libs.collections.sort import deduplicate_and_sort
 
 from .enums import AttendanceStatus
@@ -103,10 +104,16 @@ class BookingOut(SQLModel):
     topic: str
     description: str
     time_slot: TimeSlotOut
+    host: UserOut
     attendance_status: AttendanceStatus
     files: list[BookingFileOut]
     created_at: AwareDatetime
     updated_at: AwareDatetime
+
+
+class PaginatedBookingOut(SQLModel):
+    bookings: list[BookingOut]
+    total_count: int
 
 
 class SimpleBookingOut(SQLModel):
