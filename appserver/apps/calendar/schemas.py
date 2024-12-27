@@ -73,6 +73,7 @@ class TimeSlotCreateIn(SQLModel):
 
 
 class TimeSlotOut(SQLModel):
+    id: int
     start_time: time
     end_time: time
     weekdays: list[int]

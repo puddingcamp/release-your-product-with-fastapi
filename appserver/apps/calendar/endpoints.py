@@ -302,7 +302,7 @@ async def create_booking(
     )
     session.add(booking)
     await session.commit()
-    await session.refresh(booking)
+    await session.refresh(booking, ["files", "time_slot"])
     return booking
 
 
@@ -559,7 +559,7 @@ async def upload_booking_files(
 
 
 @router.get(
-    "/timeslots/{host_username}",
+    "/time-slots/{host_username}",
     status_code=status.HTTP_200_OK,
     response_model=list[TimeSlotOut],
 )

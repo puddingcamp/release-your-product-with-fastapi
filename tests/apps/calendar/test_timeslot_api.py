@@ -118,7 +118,7 @@ async def test_호스트_사용자의_타임슬롯_목록을_조회할_수_있�
         time_slot_wednesday_thursday,
         time_slot_friday,
     ]
-    response = client_with_auth.get(f"/timeslots/{host_user.username}")
+    response = client_with_auth.get(f"/time-slots/{host_user.username}")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
 
