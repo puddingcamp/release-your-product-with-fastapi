@@ -9,7 +9,7 @@ from appserver.db import DbSessionDep
 
 from .models import User
 from .utils import decode_token, ACCESS_TOKEN_EXPIRE_MINUTES
-from .exceptions import InvalidTokenError, ExpiredTokenError, UserNotFoundError
+from .exceptions import AuthNotProvidedError, InvalidTokenError, ExpiredTokenError, UserNotFoundError
 
 
 async def get_user(auth_token: str | None, db_session: AsyncSession) -> User | None:
@@ -37,6 +37,9 @@ async def get_current_user(
     db_session: DbSessionDep,
 ):
     raw_auth_token = request.cookies.get("auth_token") or request.headers.get("Authorization")
+    if raw_auth_token is None:
+        raise AuthNotProvidedError()
+    
     *__, auth_token = raw_auth_token.split(" ")
     user = await get_user(auth_token, db_session)
     if user is None:

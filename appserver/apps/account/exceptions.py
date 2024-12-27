@@ -48,3 +48,12 @@ class ExpiredTokenError(HTTPException):
             detail="만료된 인증 토큰입니다.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+class AuthNotProvidedError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="로그인이 필요합니다.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
