@@ -1,7 +1,6 @@
 import ujson
 from fastapi import status
 from sqladmin import Admin
-from jose import jwt
 from jose.exceptions import JWTError
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request

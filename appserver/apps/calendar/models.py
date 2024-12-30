@@ -33,7 +33,10 @@ class Calendar(SQLModel, table=True):
         sa_relationship_kwargs={"uselist": False, "single_parent": True, "lazy": "joined"},
     )
 
-    time_slots: list["TimeSlot"] = Relationship(back_populates="calendar")
+    time_slots: list["TimeSlot"] = Relationship(
+        back_populates="calendar",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
 
     created_at: AwareDatetime = Field(
         default=None,
@@ -74,7 +77,10 @@ class TimeSlot(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "joined"},
     )
 
-    bookings: list["Booking"] = Relationship(back_populates="time_slot")
+    bookings: list["Booking"] = Relationship(
+        back_populates="time_slot",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
 
     created_at: AwareDatetime = Field(
         default=None,
@@ -120,9 +126,15 @@ class Booking(SQLModel, table=True):
     )
 
     guest_id: int = Field(foreign_key="users.id")
-    guest: "User" = Relationship(back_populates="bookings")
+    guest: "User" = Relationship(
+        back_populates="bookings",
+        sa_relationship_kwargs={"lazy": "joined"},
+    )
 
-    files: list["BookingFile"] = Relationship(back_populates="booking")
+    files: list["BookingFile"] = Relationship(
+        back_populates="booking",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
 
     created_at: AwareDatetime = Field(
         default=None,
@@ -156,7 +168,10 @@ class BookingFile(SQLModel, table=True):
 
     id: int = Field(default=None, primary_key=True)
     booking_id: int = Field(foreign_key="bookings.id")
-    booking: Booking = Relationship(back_populates="files")
+    booking: Booking = Relationship(
+        back_populates="files",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
     file: StorageFile = Field(
         exclude=True,
         sa_column=Column(

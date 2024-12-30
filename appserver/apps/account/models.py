@@ -32,12 +32,18 @@ class User(SQLModel, table=True):
         sa_type=String,
     )
 
-    oauth_accounts: list["OAuthAccount"] = Relationship(back_populates="user")
+    oauth_accounts: list["OAuthAccount"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
     calendar: Union["Calendar", None] = Relationship(
         back_populates="host",
         sa_relationship_kwargs={"uselist": False, "single_parent": True, "lazy": "joined"},
     )
-    bookings: list["Booking"] = Relationship(back_populates="guest")
+    bookings: list["Booking"] = Relationship(
+        back_populates="guest",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
 
     created_at: AwareDatetime = Field(
         default=None,
@@ -99,7 +105,10 @@ class OAuthAccount(SQLModel, table=True):
     provider_account_id: str = Field(max_length=128, description="OAuth 제공자 계정 ID")
 
     user_id: int = Field(foreign_key="users.id")
-    user: User = Relationship(back_populates="oauth_accounts")
+    user: User = Relationship(
+        back_populates="oauth_accounts",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
 
     created_at: AwareDatetime = Field(
         default=None,
