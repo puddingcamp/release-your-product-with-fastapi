@@ -118,6 +118,7 @@ class PaginatedBookingOut(SQLModel):
 
 
 class SimpleBookingOut(SQLModel):
+    id: int
     when: date
     time_slot: TimeSlotOut
 

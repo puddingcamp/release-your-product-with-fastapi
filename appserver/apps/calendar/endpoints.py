@@ -1,5 +1,5 @@
+import asyncio
 import calendar
-import ujson
 from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status, Query, HTTPException
@@ -116,6 +116,54 @@ async def host_calendar_bookings(
         bookings.append(GoogleCalendarEventOut.model_validate(event))
 
     return bookings
+
+
+@router.get(
+    "/calendar/{host_username}/bookings/stream",
+    status_code=status.HTTP_200_OK,
+)
+async def host_calendar_bookings_stream(
+    host_username: str,
+    session: DbSessionDep,
+    year: Annotated[int, Query(ge=2024, le=2025)],
+    month: Annotated[int, Query(ge=1, le=12)],
+    service: GoogleCalendarServiceDep,
+) -> StreamingResponse:
+    stmt = select(User).where(User.username == host_username)
+    result = await session.execute(stmt)
+    host = result.scalar_one_or_none()
+
+    if host is None or host.calendar is None:
+        raise HostNotFoundError()
+
+    stmt = (
+        select(Booking)
+        .where(Booking.time_slot.has(TimeSlot.calendar_id == host.calendar.id))
+        .where(extract('year', Booking.when) == year)
+        .where(extract('month', Booking.when) == month)
+        .order_by(Booking.when.desc())
+    )
+    result = await session.execute(stmt)
+    bookings = result.scalars().all()
+    async def _stream_bookings():
+        for booking in bookings:
+            yield f"{SimpleBookingOut.model_validate(booking).model_dump_json()}\n"
+
+        await asyncio.sleep(3)
+        last_day = calendar.monthrange(year, month)[1]
+        events = await service.event_list(
+            time_min=datetime(year, month, 1).astimezone(timezone.utc),
+            time_max=datetime(year, month, last_day).astimezone(timezone.utc),
+            google_calendar_id=host.calendar.google_calendar_id,
+        )
+        for event in events:
+            yield f"{GoogleCalendarEventOut.model_validate(event).model_dump_json()}\n"
+
+    return StreamingResponse(
+        _stream_bookings(),
+        media_type="application/x-ndjson",
+        status_code=status.HTTP_200_OK,
+    )
 
 
 @router.get(
