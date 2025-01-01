@@ -137,6 +137,7 @@ class BookingAdmin(ModelView, model=Booking):
     column_list = [
         Booking.id,
         Booking.time_slot,
+        Booking.when,
         Booking.created_at,
         Booking.updated_at,
     ]

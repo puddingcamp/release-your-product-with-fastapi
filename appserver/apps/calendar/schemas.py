@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Annotated
 
 from fastapi_storages import StorageFile
@@ -106,6 +106,7 @@ class BookingOut(SQLModel):
     time_slot: TimeSlotOut
     host: UserOut
     attendance_status: AttendanceStatus
+    google_event_id: str | None
     files: list[BookingFileOut]
     created_at: AwareDatetime
     updated_at: AwareDatetime
@@ -135,3 +136,45 @@ class GuestBookingUpdateIn(SQLModel):
 
 class HostBookingStatusUpdateIn(SQLModel):
     attendance_status: AttendanceStatus
+
+
+
+class GoogleCalendarTimeSlot(SQLModel):
+    start_time: time
+    end_time: time
+    weekdays: list[int]
+
+
+class GoogleCalendarEventOut(SQLModel):
+    id: str
+    start: dict = Field(exclude=True)
+    end: dict = Field(exclude=True)
+
+    @computed_field
+    @property
+    def time_slot(self) -> GoogleCalendarTimeSlot:
+        if start_date := self.start.get("date"):
+            start_time = time(0, 0)
+            end_time = time(23, 59)
+            start_date = date.fromisoformat(start_date)
+        else:
+            start = datetime.fromisoformat(self.start["dateTime"])
+            start_time = start.time()
+            start_date = start.date()
+            end_time = datetime.fromisoformat(self.end["dateTime"]).time()
+
+        weekdays = [start_date.weekday()]
+
+        return GoogleCalendarTimeSlot(
+            start_time=start_time,
+            end_time=end_time,
+            weekdays=weekdays,
+        )
+
+    @computed_field
+    @property
+    def when(self) -> date:
+        if start_date := self.start.get("date"):
+            return date.fromisoformat(start_date)
+        return datetime.fromisoformat(self.start.get("dateTime")).date()
+    

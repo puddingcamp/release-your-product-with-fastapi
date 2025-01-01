@@ -1,3 +1,4 @@
+import calendar
 from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, File, UploadFile, status, Query, HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from appserver.apps.account.models import User
 from appserver.apps.account.deps import CurrentUserDep, CurrentUserOptionalDep
 from appserver.db import DbSessionDep
+from appserver.libs.google.calendar.deps import GoogleCalendarServiceDep
 
 from .enums import AttendanceStatus
 from .exceptions import (
@@ -32,6 +34,7 @@ from .schemas import (
     CalendarDetailOut,
     CalendarOut,
     CalendarUpdateIn,
+    GoogleCalendarEventOut,
     GuestBookingUpdateIn,
     HostBookingStatusUpdateIn,
     HostBookingUpdateIn,
@@ -75,21 +78,22 @@ async def host_calendar_detail(
 @router.get(
     "/calendar/{host_username}/bookings",
     status_code=status.HTTP_200_OK,
-    response_model=list[SimpleBookingOut],
+    response_model=list[SimpleBookingOut | GoogleCalendarEventOut],
 )
 async def host_calendar_bookings(
     host_username: str,
     session: DbSessionDep,
     year: Annotated[int, Query(ge=2024, le=2025)],
     month: Annotated[int, Query(ge=1, le=12)],
-) -> list[SimpleBookingOut]:
+    service: GoogleCalendarServiceDep,
+) -> list[SimpleBookingOut | GoogleCalendarEventOut]:
     stmt = select(User).where(User.username == host_username)
     result = await session.execute(stmt)
     host = result.scalar_one_or_none()
 
     if host is None or host.calendar is None:
         raise HostNotFoundError()
-
+    
     stmt = (
         select(Booking)
         .where(Booking.time_slot.has(TimeSlot.calendar_id == host.calendar.id))
@@ -98,7 +102,25 @@ async def host_calendar_bookings(
         .order_by(Booking.when.desc())
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    bookings = result.scalars().all()
+
+    last_day = calendar.monthrange(year, month)[1]
+    events = await service.event_list(
+        time_min=datetime(year, month, 1).astimezone(timezone.utc),
+        time_max=datetime(year, month, last_day).astimezone(timezone.utc),
+        google_calendar_id=host.calendar.google_calendar_id,
+    )
+
+    for event in events:
+        bookings.append(
+            GoogleCalendarEventOut(
+                id=event["id"],
+                start=event["start"],
+                end=event["end"],
+            )
+        )
+
+    return bookings
 
 
 @router.get(
@@ -130,7 +152,6 @@ async def guest_calendar_bookings(
     )
 
 
-
 @router.post(
     "/calendar",
     status_code=status.HTTP_201_CREATED,
@@ -139,7 +160,8 @@ async def guest_calendar_bookings(
 async def create_calendar(
     user: CurrentUserDep,
     session: DbSessionDep,
-    payload: CalendarCreateIn
+    payload: CalendarCreateIn,
+    service: GoogleCalendarServiceDep,
 ) -> CalendarDetailOut:
     if not user.is_host:
         raise GuestPermissionError()
@@ -260,7 +282,8 @@ async def create_booking(
     host_username: str,
     user: CurrentUserDep,
     session: DbSessionDep,
-    payload: BookingCreateIn
+    payload: BookingCreateIn,
+    service: GoogleCalendarServiceDep,
 ) -> BookingOut:
     stmt = (
         select(User)
@@ -301,7 +324,6 @@ async def create_booking(
     exists = result.scalar_one_or_none()
     if exists:
         raise BookingAlreadyExistsError()
-
     booking = Booking(
         guest_id=user.id,
         when=payload.when,
@@ -312,6 +334,21 @@ async def create_booking(
     session.add(booking)
     await session.commit()
     await session.refresh(booking, ["files", "time_slot"])
+
+    start_datetime = datetime.combine(booking.when, time_slot.start_time)
+    end_datetime = datetime.combine(booking.when, time_slot.end_time)
+
+    event = await service.create_event(
+        start_datetime=start_datetime.astimezone(timezone.utc),
+        end_datetime=end_datetime.astimezone(timezone.utc),
+        summary=booking.topic,
+        description=booking.description,
+        google_calendar_id=host.calendar.google_calendar_id,
+    )
+    if event:
+        booking.google_event_id = event["id"]
+        await session.commit()
+    
     return booking
 
 
@@ -379,7 +416,8 @@ async def host_update_booking(
     session: DbSessionDep,
     booking_id: int,
     now: UtcNow,
-    payload: HostBookingUpdateIn
+    payload: HostBookingUpdateIn,
+    service: GoogleCalendarServiceDep,
 ) -> BookingOut:
     if not user.is_host or user.calendar is None:
         raise HostNotFoundError()
@@ -418,6 +456,20 @@ async def host_update_booking(
 
     await session.commit()
     await session.refresh(booking)
+ 
+    start_datetime = datetime.combine(booking.when, booking.time_slot.start_time)
+    end_datetime = datetime.combine(booking.when, booking.time_slot.end_time)
+
+    if booking.google_event_id:
+        await service.update_event(
+            event_id=booking.google_event_id,
+            start_datetime=start_datetime.astimezone(timezone.utc),
+            end_datetime=end_datetime.astimezone(timezone.utc),
+            summary=booking.topic,
+            description=booking.description,
+            google_calendar_id=user.calendar.google_calendar_id,
+        )
+   
     return booking
 
 
@@ -431,7 +483,8 @@ async def guest_update_booking(
     session: DbSessionDep,
     booking_id: int,
     now: UtcNow,
-    payload: GuestBookingUpdateIn
+    payload: GuestBookingUpdateIn,
+    service: GoogleCalendarServiceDep,
 ) -> BookingOut:
     stmt = (
         select(Booking)
@@ -468,6 +521,20 @@ async def guest_update_booking(
         booking.when = payload.when
     await session.commit()
     await session.refresh(booking)
+
+    if booking.google_event_id:
+        start_datetime = datetime.combine(booking.when, booking.time_slot.start_time)
+        end_datetime = datetime.combine(booking.when, booking.time_slot.end_time)
+
+        await service.update_event(
+            event_id=booking.google_event_id,
+            start_datetime=start_datetime.astimezone(timezone.utc),
+            end_datetime=end_datetime.astimezone(timezone.utc),
+            summary=booking.topic,
+            description=booking.description,
+            google_calendar_id=booking.time_slot.calendar.google_calendar_id,
+        )
+    
     return booking
 
 
@@ -515,6 +582,7 @@ async def cancel_guest_booking(
     session: DbSessionDep,
     booking_id: int,
     now: UtcNow,
+    service: GoogleCalendarServiceDep,
 ) -> None:
     stmt = (
         select(Booking)
@@ -525,7 +593,7 @@ async def cancel_guest_booking(
     booking = result.scalar_one_or_none()
     if booking is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
-    
+
     if booking.when <= now.date():
         raise PastBookingError()
 
@@ -534,7 +602,10 @@ async def cancel_guest_booking(
         await session.commit()
         await session.refresh(booking)
 
-    return booking
+    if booking.google_event_id:
+        await service.delete_event(booking.google_event_id, booking.time_slot.calendar.google_calendar_id)
+
+    return None
 
 
 @router.post(

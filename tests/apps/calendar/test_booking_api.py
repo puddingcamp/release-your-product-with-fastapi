@@ -1,5 +1,6 @@
 import calendar
 from datetime import date
+import os
 
 import pytest
 from pytest_lazy_fixtures import lf
@@ -11,6 +12,17 @@ from appserver.apps.calendar.schemas import BookingOut
 from appserver.apps.account.models import User
 from appserver.apps.calendar.models import Booking, TimeSlot
 from appserver.libs.datetime.calendar import get_next_weekday
+from appserver.libs.google.calendar.services import GoogleCalendarService
+
+
+@pytest.fixture()
+def calendar_id() -> str:
+    return os.getenv("GOOGLE_CALENDAR_ID")
+
+
+@pytest.fixture()
+def google_calendar_service(calendar_id: str) -> GoogleCalendarService:
+    return GoogleCalendarService(default_google_calendar_id=calendar_id)
 
 
 @pytest.fixture()
@@ -414,3 +426,82 @@ async def test_게스트는_자신이_신청한_부킹에_파일을_업로드할
 
     file_names = [file_name["file"].split("/")[-1] for file_name in data["files"]]
     assert file_names == ["file1.txt", "file2.txt", "file3.txt"]
+
+
+@pytest.mark.skipif(
+    os.getenv("GOOGLE_CALENDAR_ID") is None,
+    reason="GOOGLE_CALENDAR_ID is not set",
+)
+@pytest.mark.usefixtures("host_user_calendar")
+async def test_부킹을_생성하면_호스트의_구글_캘린더에_일정을_생성한다(
+    host_user: User,
+    client_with_guest_auth: TestClient,
+    valid_booking_payload: dict,
+):
+    response = client_with_guest_auth.post(
+        f"/bookings/{host_user.username}",
+        json=valid_booking_payload,
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert data["google_event_id"] is not None
+
+
+@pytest.mark.skipif(
+    os.getenv("GOOGLE_CALENDAR_ID") is None,
+    reason="GOOGLE_CALENDAR_ID is not set",
+)
+@pytest.mark.usefixtures("host_user_calendar")
+async def test_부킹을_변경하면_호스트의_구글_캘린더에_일정을_반영한다(
+    host_user: User,
+    client_with_guest_auth: TestClient,
+    valid_booking_payload: dict,
+    google_calendar_service: GoogleCalendarService,
+):
+    response = client_with_guest_auth.post(
+        f"/bookings/{host_user.username}",
+        json=valid_booking_payload,
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert data["google_event_id"] is not None
+
+    response = client_with_guest_auth.patch(
+        f"/guest-bookings/{data['id']}",
+        json={
+            "description": "변경한 설명",
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["google_event_id"] is not None
+
+    event = await google_calendar_service.get_event(data["google_event_id"])
+    assert event["description"] == "변경한 설명"
+
+
+@pytest.mark.skipif(
+    os.getenv("GOOGLE_CALENDAR_ID") is None,
+    reason="GOOGLE_CALENDAR_ID is not set",
+)
+async def test_부킹을_삭제하면_호스트의_구글_캘린더에_일정을_삭제한다(
+    host_user: User,
+    client_with_guest_auth: TestClient,
+    google_calendar_service: GoogleCalendarService,
+    valid_booking_payload: dict,
+):
+    response = client_with_guest_auth.post(
+        f"/bookings/{host_user.username}",
+        json=valid_booking_payload,
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert data["google_event_id"] is not None
+
+    response = client_with_guest_auth.delete(f"/guest-bookings/{data['id']}")
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    event = await google_calendar_service.get_event(data["google_event_id"])
+    assert event["status"] == "cancelled"
+
+

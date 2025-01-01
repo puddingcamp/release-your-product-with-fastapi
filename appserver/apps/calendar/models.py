@@ -136,6 +136,14 @@ class Booking(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "noload"},
     )
 
+    google_event_id: str | None = Field(
+        max_length=64,
+        default=None,
+        nullable=True,
+        description="Google Calendar Event ID",
+        sa_type=String,
+    )
+
     created_at: AwareDatetime = Field(
         default=None,
         nullable=False,
