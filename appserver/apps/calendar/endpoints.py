@@ -1,7 +1,9 @@
 import calendar
+import ujson
 from typing import Annotated
 from datetime import datetime, timezone
-from fastapi import APIRouter, File, UploadFile, status, Query, HTTPException
+from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status, Query, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlmodel import select, and_, func, true, extract
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
@@ -93,7 +95,7 @@ async def host_calendar_bookings(
 
     if host is None or host.calendar is None:
         raise HostNotFoundError()
-    
+
     stmt = (
         select(Booking)
         .where(Booking.time_slot.has(TimeSlot.calendar_id == host.calendar.id))
@@ -110,15 +112,8 @@ async def host_calendar_bookings(
         time_max=datetime(year, month, last_day).astimezone(timezone.utc),
         google_calendar_id=host.calendar.google_calendar_id,
     )
-
     for event in events:
-        bookings.append(
-            GoogleCalendarEventOut(
-                id=event["id"],
-                start=event["start"],
-                end=event["end"],
-            )
-        )
+        bookings.append(GoogleCalendarEventOut.model_validate(event))
 
     return bookings
 
@@ -284,6 +279,7 @@ async def create_booking(
     session: DbSessionDep,
     payload: BookingCreateIn,
     service: GoogleCalendarServiceDep,
+    background_tasks: BackgroundTasks,
 ) -> BookingOut:
     stmt = (
         select(User)
@@ -338,16 +334,18 @@ async def create_booking(
     start_datetime = datetime.combine(booking.when, time_slot.start_time)
     end_datetime = datetime.combine(booking.when, time_slot.end_time)
 
-    event = await service.create_event(
-        start_datetime=start_datetime.astimezone(timezone.utc),
-        end_datetime=end_datetime.astimezone(timezone.utc),
-        summary=booking.topic,
-        description=booking.description,
-        google_calendar_id=host.calendar.google_calendar_id,
-    )
-    if event:
+    async def _apply_event_id():
+        event = await service.create_event(
+            start_datetime=start_datetime.astimezone(timezone.utc),
+            end_datetime=end_datetime.astimezone(timezone.utc),
+            summary=booking.topic,
+            description=booking.description,
+            google_calendar_id=host.calendar.google_calendar_id,
+        )
         booking.google_event_id = event["id"]
         await session.commit()
+
+    background_tasks.add_task(_apply_event_id)
     
     return booking
 
@@ -418,6 +416,7 @@ async def host_update_booking(
     now: UtcNow,
     payload: HostBookingUpdateIn,
     service: GoogleCalendarServiceDep,
+    background_tasks: BackgroundTasks,
 ) -> BookingOut:
     if not user.is_host or user.calendar is None:
         raise HostNotFoundError()
@@ -461,14 +460,17 @@ async def host_update_booking(
     end_datetime = datetime.combine(booking.when, booking.time_slot.end_time)
 
     if booking.google_event_id:
-        await service.update_event(
-            event_id=booking.google_event_id,
-            start_datetime=start_datetime.astimezone(timezone.utc),
-            end_datetime=end_datetime.astimezone(timezone.utc),
-            summary=booking.topic,
-            description=booking.description,
-            google_calendar_id=user.calendar.google_calendar_id,
-        )
+        async def _update_google_calendar_event():
+            await service.update_event(
+                event_id=booking.google_event_id,
+                start_datetime=start_datetime.astimezone(timezone.utc),
+                end_datetime=end_datetime.astimezone(timezone.utc),
+                summary=booking.topic,
+                description=booking.description,
+                google_calendar_id=user.calendar.google_calendar_id,
+            )
+            
+        background_tasks.add_task(_update_google_calendar_event)
    
     return booking
 
@@ -485,6 +487,7 @@ async def guest_update_booking(
     now: UtcNow,
     payload: GuestBookingUpdateIn,
     service: GoogleCalendarServiceDep,
+    background_tasks: BackgroundTasks,
 ) -> BookingOut:
     stmt = (
         select(Booking)
@@ -526,14 +529,17 @@ async def guest_update_booking(
         start_datetime = datetime.combine(booking.when, booking.time_slot.start_time)
         end_datetime = datetime.combine(booking.when, booking.time_slot.end_time)
 
-        await service.update_event(
-            event_id=booking.google_event_id,
-            start_datetime=start_datetime.astimezone(timezone.utc),
-            end_datetime=end_datetime.astimezone(timezone.utc),
-            summary=booking.topic,
-            description=booking.description,
-            google_calendar_id=booking.time_slot.calendar.google_calendar_id,
-        )
+        async def _update_google_calendar_event():
+            await service.update_event(
+                event_id=booking.google_event_id,
+                start_datetime=start_datetime.astimezone(timezone.utc),
+                end_datetime=end_datetime.astimezone(timezone.utc),
+                summary=booking.topic,
+                description=booking.description,
+                google_calendar_id=booking.time_slot.calendar.google_calendar_id,
+            )
+            
+        background_tasks.add_task(_update_google_calendar_event)
     
     return booking
 
@@ -583,6 +589,7 @@ async def cancel_guest_booking(
     booking_id: int,
     now: UtcNow,
     service: GoogleCalendarServiceDep,
+    background_tasks: BackgroundTasks,
 ) -> None:
     stmt = (
         select(Booking)
@@ -603,8 +610,11 @@ async def cancel_guest_booking(
         await session.refresh(booking)
 
     if booking.google_event_id:
-        await service.delete_event(booking.google_event_id, booking.time_slot.calendar.google_calendar_id)
-
+        async def _cancel_google_calendar_event():
+            await service.delete_event(booking.google_event_id, booking.time_slot.calendar.google_calendar_id)
+            
+        background_tasks.add_task(_cancel_google_calendar_event)
+ 
     return None
 
 
