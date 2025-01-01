@@ -1,5 +1,34 @@
-import { IBooking } from "~/types/booking";
+import { IBooking, ICalendarEvent } from "~/types/booking";
 import { ITimeSlot } from "~/types/timeslot";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyObject = Record<string, any>;
+
+export function snakeToCamel(obj: AnyObject | AnyObject[]): AnyObject | AnyObject[] {
+    if (Array.isArray(obj)) {
+        return obj.map(v => snakeToCamel(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((acc, key) => {
+            const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+            acc[camelKey] = snakeToCamel(obj[key]);
+            return acc;
+        }, {} as AnyObject);
+    }
+    return obj;
+}
+
+export function camelToSnake(obj: AnyObject | AnyObject[]): AnyObject | AnyObject[] {
+    if (Array.isArray(obj)) {
+        return obj.map(v => camelToSnake(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((acc, key) => {
+            const snakeKey = key.replace(/([A-Z])/g, g => `_${g.toLowerCase()}`);
+            acc[snakeKey] = camelToSnake(obj[key]);
+            return acc;
+        }, {} as AnyObject);
+    }
+    return obj;
+}
 
 export const getDaysInMonth = (date: Date) => {
     // 해당 월의 마지막 날짜를 구함
@@ -35,7 +64,7 @@ export const getCalendarDays = (date: Date) => {
 export function checkAvailableBookingDate(
     baseDate: Date,
     timeslots: ITimeSlot[],
-    bookings: IBooking[],
+    bookings: Array<IBooking | ICalendarEvent>,
     year: number,
     month: number,
     day: number,
@@ -61,31 +90,30 @@ export function checkAvailableBookingDate(
         return false;
     }
 
-    return !timeslots.some(timeslot => {
-        const isTimeSlotWeekday = timeslot.weekdays.includes(weekday);
-        if (!isTimeSlotWeekday) return false;
+    const isTimeSlotWeekday = timeslots.some(timeslot => timeslot.weekdays.includes(weekday));
+    if (!isTimeSlotWeekday) return false;
 
-        const [startHour, startMinute] = timeslot.startTime.split(":");
-        const startTime = Number(startHour) * 60 + Number(startMinute);
-        const [endHour, endMinute] = timeslot.endTime.split(":");
-        const endTime = Number(endHour) * 60 + Number(endMinute);
+    return !bookings.some((booking) => {
+        const [bookingYear, bookingMonth, bookingDay] = booking.when.split("-");
+        if (Number(bookingYear) !== year || Number(bookingMonth) !== month || Number(bookingDay) !== day) {
+            return false;
+        }
 
-        const isBooked = bookings.some((booking) => {
-            const [bookingYear, bookingMonth, bookingDay] = booking.when.split("-");
-            if (Number(bookingYear) !== year || Number(bookingMonth) !== month || Number(bookingDay) !== day) {
-                return false;
-            }
+        const [bookingStartHour, bookingStartMinute] = booking.timeSlot.startTime.split(":");
+        const bookingStartTime = Number(bookingStartHour) * 60 + Number(bookingStartMinute);
+        const [bookingEndHour, bookingEndMinute] = booking.timeSlot.endTime.split(":");
+        const bookingEndTime = Number(bookingEndHour) * 60 + Number(bookingEndMinute);
 
-            const [bookingStartHour, bookingStartMinute] = booking.timeSlot.startTime.split(":");
-            const bookingStartTime = Number(bookingStartHour) * 60 + Number(bookingStartMinute);
-            const [bookingEndHour, bookingEndMinute] = booking.timeSlot.endTime.split(":");
-            const bookingEndTime = Number(bookingEndHour) * 60 + Number(bookingEndMinute);
+        return timeslots.some((timeslot) => {
+            const [startHour, startMinute] = timeslot.startTime.split(":");
+            const startTime = Number(startHour) * 60 + Number(startMinute);
+            const [endHour, endMinute] = timeslot.endTime.split(":");
+            const endTime = Number(endHour) * 60 + Number(endMinute);
 
             return (bookingEndTime >= startTime && bookingEndTime <= endTime)
-        || (bookingStartTime >= startTime && bookingStartTime <= endTime);
+        || (bookingStartTime >= startTime && bookingStartTime <= endTime)
+        || (startTime <= bookingStartTime && bookingEndTime <= endTime)
+        || (bookingStartTime <= startTime && bookingEndTime >= endTime);
         });
-
-        return !isTimeSlotWeekday || isBooked;
     });
-
 }

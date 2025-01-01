@@ -14,6 +14,7 @@ import { useBookings } from '~/hooks/useBookings';
 
 import './calendar.less';
 import { useAuth } from '~/hooks/useAuth';
+import { useBookingsStreamQuery } from '~/hooks/useBookings';
 
 function Calendar({ baseDate }: { baseDate?: Date }) {
     const { year, month } = useSearch({ from: '/calendar/$slug' });
@@ -25,7 +26,13 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
     const auth = useAuth();
     const calendar = useCalendarEvent(slug);
     const { data: timeslots = [] } = useTimeslots(slug, selectedDate);
-    const { data: bookings = [], refetch: refetchBookings } = useBookings(slug, selectedDate);
+    const { data: bookingsApi = [], refetch: refetchBookings } = useBookings(slug, selectedDate);
+    const bookingsStream = useBookingsStreamQuery({
+        endpoint: `http://localhost:8000/calendar/${slug}/bookings/stream?year=${year}&month=${month}`,
+        onMessage: (data) => {
+            console.log('onMessage', data);
+        },
+    });
     const { handlePrevious, handleNext } = useCalendarNavigation();
     const { handleSelectDay } = useCalendarDateSelection();
 
@@ -93,12 +100,12 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
                         days={getCalendarDays(new Date(year, month - 1))}
                         baseDate={baseDate}
                         timeslots={timeslots}
-                        bookings={bookings}
+                        bookings={month % 2 === 0 ? bookingsApi : bookingsStream}
                         onSelectDay={handleDaySelect}
                     />
                     <Timeslots
                         timeslots={timeslots}
-                        bookings={bookings}
+                        bookings={month % 2 === 0 ? bookingsApi : bookingsStream}
                         baseDate={selectedDate}
                         onSelectTimeslot={handleSelectTimeslot}
                     />
@@ -117,5 +124,5 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
 
     );
 }
-
 export default Calendar;
+

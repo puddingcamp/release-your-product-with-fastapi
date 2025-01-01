@@ -2,9 +2,17 @@ import type { DateString, ISO8601String } from "./base";
 import type { ITimeSlot } from "./timeslot";
 
 export interface IBooking {
+    id: number;
     when: DateString;
     timeSlot: ITimeSlot;
 }
+
+export interface ICalendarEvent {
+    id: string;
+    when: DateString;
+    timeSlot: ITimeSlot;
+}
+
 
 export interface IBookingDetail {
     id: number

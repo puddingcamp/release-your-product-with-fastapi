@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { getBooking, getBookingsByDate, getMyBookings, uploadBookingFile } from '~/libs/bookings';
-import { IBooking, IBookingDetail, IPaginatedBookingDetail } from '~/types/booking';
+import { snakeToCamel } from '~/libs/utils';
+import { IBooking, IBookingDetail, ICalendarEvent, IPaginatedBookingDetail } from '~/types/booking';
 
 
 export function useBookings(hostname: string, date: Date | null) {
@@ -41,4 +43,49 @@ export function useUploadBookingFile(id: number) {
             return data;
         },
     });
+}
+
+export function useBookingsStreamQuery({
+    endpoint,
+    onMessage,
+}: {
+    endpoint: string;
+    onMessage?: (data: IBooking | ICalendarEvent) => void;
+}) {
+    const [items, setItems] = useState<Array<IBooking | ICalendarEvent>>([]);
+
+    useEffect(() => {
+        const fetchStream = async () => {
+            const response = await fetch(endpoint);
+            const reader = response.body!.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    await reader.cancel();
+                    break;
+                }
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n').filter(Boolean);
+                lines.forEach(line => {
+                    const data = snakeToCamel(JSON.parse(line)) as IBooking | ICalendarEvent;
+                    setItems((prevData) => {
+                        const index = prevData.findIndex((item) => item.id === data.id);
+                        if (index === -1) {
+                            return [...prevData, data];
+                        }
+                        return prevData;
+                    });
+                    onMessage?.(data);
+                });
+            }
+        };
+
+        fetchStream();
+
+    }, [endpoint, onMessage]);
+
+    return items;
 }

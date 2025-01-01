@@ -5,13 +5,13 @@ import clsx from "clsx";
 import { Button } from "~/components/button";
 import { useAuth } from "~/hooks/useAuth";
 import { checkAvailableBookingDate } from "~/libs/utils";
-import { IBooking } from "~/types/booking";
+import { IBooking, ICalendarEvent } from "~/types/booking";
 import { ITimeSlot } from "~/types/timeslot";
 
 interface TimeslotsProps {
     baseDate: Date | null;
     timeslots: ITimeSlot[];
-    bookings: IBooking[];
+    bookings: Array<IBooking | ICalendarEvent>;
     onSelectTimeslot: (timeslot: ITimeSlot) => void;
 }
 

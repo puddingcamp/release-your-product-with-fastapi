@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { checkAvailableBookingDate } from "~/libs/utils";
-import { IBooking } from "~/types/booking";
+import { IBooking, ICalendarEvent } from "~/types/booking";
 import { ITimeSlot } from "~/types/timeslot";
 
 interface BodyProps {
@@ -9,7 +9,7 @@ interface BodyProps {
     days: number[];
     baseDate?: Date;
     timeslots: ITimeSlot[];
-    bookings: IBooking[];
+    bookings: Array<IBooking | ICalendarEvent>;
     onSelectDay: (date: Date) => void;
 }
 
