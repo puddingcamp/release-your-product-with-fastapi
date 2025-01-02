@@ -204,7 +204,6 @@ async def create_calendar(
     user: CurrentUserDep,
     session: DbSessionDep,
     payload: CalendarCreateIn,
-    service: GoogleCalendarServiceDep,
 ) -> CalendarDetailOut:
     if not user.is_host:
         raise GuestPermissionError()
