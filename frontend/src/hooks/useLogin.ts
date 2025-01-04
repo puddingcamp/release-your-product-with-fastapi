@@ -35,7 +35,7 @@ export function useLogin(): UseMutationResult<LoginResponse, Error, LoginCredent
         },
         onSuccess: () => {
             navigate({
-                to: '/',
+                to: '/app',
             });
         },
         onError: (error: Error) => {

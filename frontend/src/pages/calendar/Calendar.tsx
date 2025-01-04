@@ -17,8 +17,8 @@ import { useAuth } from '~/hooks/useAuth';
 import { useBookingsStreamQuery } from '~/hooks/useBookings';
 
 function Calendar({ baseDate }: { baseDate?: Date }) {
-    const { year, month } = useSearch({ from: '/calendar/$slug' });
-    const { slug } = useParams({ from: '/calendar/$slug' });
+    const { year, month } = useSearch({ from: '/app/calendar/$slug' });
+    const { slug } = useParams({ from: '/app/calendar/$slug' });
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTimeslot, setSelectedTimeslot] = useState<ITimeSlot | null>(null);
 
@@ -62,7 +62,7 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
     useEffect(() => {
         if (auth.isError) {
             navigate({
-                to: '/login',
+                to: '/app/login',
             });
         }
     }, [auth.isError, navigate]);
@@ -74,8 +74,8 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
 
             <div className='flex flex-row justify-between'>
                 <div className='flex flex-row gap-4'>
-                    <Link to='/' className='bg-gray-500 hover:bg-gray-700 hover:text-white text-white px-4 py-2 rounded-md'>첫 화면으로</Link>
-                    <Link to='/my-bookings' className='border border-gray-500 hover:border-gray-300 hover:text-gray-500 px-4 py-2 rounded-md'>내 예약 목록</Link>
+                    <Link to='/app' className='bg-gray-500 hover:bg-gray-700 hover:text-white text-white px-4 py-2 rounded-md'>첫 화면으로</Link>
+                    <Link to='/app/my-bookings' className='border border-gray-500 hover:border-gray-300 hover:text-gray-500 px-4 py-2 rounded-md'>내 예약 목록</Link>
                 </div>
 
                 <h2 className="text-primary text-2xl">

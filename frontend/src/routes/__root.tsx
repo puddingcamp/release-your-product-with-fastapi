@@ -28,14 +28,14 @@ const RootRoute = createRootRoute({
 
 const homeRoute = createRoute({
     getParentRoute: () => RootRoute,
-    path: '/',
+    path: '/app',
     component: Home,
 })
 
 
 const myBookingsRoute = createRoute({
     getParentRoute: () => RootRoute,
-    path: '/my-bookings',
+    path: '/app/my-bookings',
     component: MyBookings,
     validateSearch: z.object({
         page: z.number().min(1).optional().default(() => 1),
@@ -46,7 +46,7 @@ const myBookingsRoute = createRoute({
 
 const bookingRoute = createRoute({
     getParentRoute: () => RootRoute,
-    path: '/booking/$id',
+    path: '/app/booking/$id',
     component: Booking,
     params: z.object({
         id: z.string().transform<number>((val) => parseInt(val, 10)).pipe(z.number().min(1)),
@@ -56,14 +56,14 @@ const bookingRoute = createRoute({
 
 const loginRoute = createRoute({
     getParentRoute: () => RootRoute,
-    path: '/login',
+    path: '/app/login',
     component: Login,
 })
 
 
 const calendarRoute = createRoute({
     getParentRoute: () => RootRoute,
-    path: '/calendar/$slug',
+    path: '/app/calendar/$slug',
     component: Calendar,
     params: z.object({
         slug: z.string().min(4),
