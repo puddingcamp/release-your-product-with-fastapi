@@ -14,7 +14,7 @@ export function useCalendarNavigation() {
         });
 
         navigate({
-            to: '/calendar/$slug',
+            to: '/app/calendar/$slug',
             params: {
                 slug,
             },
@@ -34,7 +34,7 @@ export function useCalendarNavigation() {
         });
 
         navigate({
-            to: '/calendar/$slug',
+            to: '/app/calendar/$slug',
             params: {
                 slug,
             },

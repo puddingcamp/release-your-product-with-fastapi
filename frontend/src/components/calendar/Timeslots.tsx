@@ -32,7 +32,7 @@ export default function Timeslots({ baseDate, timeslots, bookings, onSelectTimes
                     className="space-y-3 md:space-y-4 w-full md:w-60 md:min-w-60 text-center md:w-full md:text-left">
                     <p>커피챗을 신청할 날짜를 고르세요.</p>
                     <Link
-                        to="/login"
+                        to="/app/login"
                         className="block w-full border border-blue-100 font-semibold rounded py-3 text-center bg-primary text-white hover:bg-secondary">
                         로그인 후 커피챗 신청하기
                     </Link>

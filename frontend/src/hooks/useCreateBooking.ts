@@ -25,7 +25,7 @@ export function useCreateBooking(slug: string, year: number, month: number): Use
         },
         onSuccess: () => {
             navigate({
-                to: '/calendar/$slug',
+                to: '/app/calendar/$slug',
                 params: { slug },
                 search: { year, month },
             });
