@@ -38,7 +38,7 @@ addopts = " --strict-markers --tb=short --asyncio-mode=auto -p no:warnings --doc
 python_files = ["tests.py", "test_*.py"]
 rootdir = "./"
 testpaths = ["./tests", "./appserver"]
-pythonpath = ["./appserver"]
+pythonpath = ["./"]
 filterwarnings = ["error", "ignore::DeprecationWarning:etcd3.*:"]
 log_cli = true
 log_cli_level = "WARNING"
