@@ -19,6 +19,7 @@ fastapi-storages = {extras = ["all"], version = "^0.3.0"}
 sqladmin = {extras = ["all"], version = "^0.20.1"}
 google-api-python-client = "^2.156.0"
 sentry-sdk = {extras = ["fastapi"], version = "^2.19.2"}
+pytest-lazy-fixtures = "^1.2.0"
 
 
 [tool.poetry.group.dev.dependencies]
