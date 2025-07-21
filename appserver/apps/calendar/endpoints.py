@@ -104,7 +104,7 @@ async def host_calendar_bookings(
         .order_by(Booking.when.desc())
     )
     result = await session.execute(stmt)
-    bookings = result.scalars().all()
+    bookings = result.unique().scalars().all()
 
     last_day = calendar.monthrange(year, month)[1]
     events = await service.event_list(
@@ -144,7 +144,7 @@ async def host_calendar_bookings_stream(
         .order_by(Booking.when.desc())
     )
     result = await session.execute(stmt)
-    bookings = result.scalars().all()
+    bookings = result.unique().scalars().all()
     async def _stream_bookings():
         for booking in bookings:
             yield f"{SimpleBookingOut.model_validate(booking).model_dump_json()}\n"
@@ -190,7 +190,7 @@ async def guest_calendar_bookings(
     count_result = await session.execute(count_stmt)
     
     return PaginatedBookingOut(
-        bookings=result.scalars().all(),
+        bookings=result.unique().scalars().all(),
         total_count=count_result.scalar_one_or_none() or 0,
     )
 
