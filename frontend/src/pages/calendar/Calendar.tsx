@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 
 import { useSearch, useParams, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 import { Body, Navigator, Timeslots, BookingForm } from '~/components/calendar'
 import { getCalendarDays } from '~/libs/utils';
@@ -16,6 +16,8 @@ import './calendar.less';
 import { useAuth } from '~/hooks/useAuth';
 import { useBookingsStreamQuery } from '~/hooks/useBookings';
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+
 function Calendar({ baseDate }: { baseDate?: Date }) {
     const { year, month } = useSearch({ from: '/app/calendar/$slug' });
     const { slug } = useParams({ from: '/app/calendar/$slug' });
@@ -28,7 +30,7 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
     const { data: timeslots = [] } = useTimeslots(slug, selectedDate);
     const { data: bookingsApi = [], refetch: refetchBookings } = useBookings(slug, selectedDate);
     const bookingsStream = useBookingsStreamQuery({
-        endpoint: `http://localhost:8000/calendar/${slug}/bookings/stream?year=${year}&month=${month}`,
+        endpoint: `${API_URL}/calendar/${slug}/bookings/stream?year=${year}&month=${month}`,
         onMessage: (data) => {
             console.log('onMessage', data);
         },
@@ -36,10 +38,10 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
     const { handlePrevious, handleNext } = useCalendarNavigation();
     const { handleSelectDay } = useCalendarDateSelection();
 
-    const handleDaySelect = (date: Date) => {
+    const handleDaySelect = useCallback((date: Date) => {
         setSelectedDate(date);
         handleSelectDay(slug, date);
-    };
+    }, [slug, handleSelectDay]);
 
     const handleSelectTimeslot = (timeslot: ITimeSlot) => {
         setSelectedTimeslot(timeslot);
@@ -57,7 +59,7 @@ function Calendar({ baseDate }: { baseDate?: Date }) {
     useEffect(() => {
         const date = new Date(year, month - 1, 1);
         handleDaySelect(date);
-    }, [year, month]);
+    }, [year, month, handleDaySelect]);
 
     useEffect(() => {
         if (auth.isError) {
