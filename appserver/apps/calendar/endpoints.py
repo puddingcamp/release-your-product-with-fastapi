@@ -445,7 +445,7 @@ async def get_booking_by_id(
         stmt = stmt.where(Booking.guest_id == user.id).options(selectinload(Booking.files))
 
     result = await session.execute(stmt)
-    booking = result.scalar_one_or_none()
+    booking = result.unique().scalar_one_or_none()
     if booking is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약 내역이 없습니다.")
     return booking
